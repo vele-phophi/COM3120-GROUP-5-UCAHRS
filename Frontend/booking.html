@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UCAHRS – Book Appointment</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blue: #1a3c6e; --blue-light: #2a5ca8; --red: #c0392b;
+            --gold: #b8962e; --gold-light: #d4af5a; --white: #ffffff;
+            --bg: #f0f2f7; --card-bg: #ffffff; --text-dark: #1a1a2e;
+            --text-muted: #6b7280; --success: #1a8c5e; --border: #e5e2db;
+            --shadow: 0 2px 16px rgba(0,0,0,0.07); --input-bg: #f8f7f5;
+        }
+        [data-theme="dark"] {
+            --bg: #0d1117; --card-bg: #161b22; --text-dark: #e6edf3;
+            --text-muted: #8b949e; --border: #30363d; --input-bg: #1c2128;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "DM Sans", sans-serif; background: var(--bg); color: var(--text-dark); transition: all 0.3s; }
+        .navbar {
+            background: linear-gradient(135deg, var(--blue), var(--blue-light));
+            padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 16px rgba(26,60,110,0.3);
+        }
+        .nav-brand { display: flex; align-items: center; gap: 12px; }
+        .nav-logo { width: 38px; height: 38px; filter: brightness(0) invert(1); }
+        .nav-title { font-family: "Playfair Display", serif; font-size: 18px; color: white; }
+        .nav-title span { font-size: 10px; display: block; color: rgba(255,255,255,0.6); }
+        .nav-actions { display: flex; gap: 12px; }
+        .nav-back, .dark-toggle {
+            padding: 8px 18px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 8px; color: white; font-size: 13px; cursor: pointer; text-decoration: none;
+        }
+        .dark-toggle { padding: 0; width: 38px; display: flex; align-items: center; justify-content: center; }
+        .hero {
+            background: linear-gradient(135deg, rgba(10,25,60,0.9), rgba(26,60,110,0.8));
+            padding: 40px 32px; color: white;
+        }
+        .hero-content { max-width: 600px; margin: 0 auto; }
+        .hero-badge { display: inline-block; background: rgba(212,175,90,0.2); border-radius: 20px; padding: 4px 12px; font-size: 11px; margin-bottom: 12px; }
+        .hero h1 { font-family: "Playfair Display", serif; font-size: 28px; }
+        .main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); }
+        .card-title { font-family: "Playfair Display", serif; font-size: 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border);
+            border-radius: 10px; font-family: "DM Sans", sans-serif; font-size: 14px; outline: none;
+        }
+        .slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+        .slot { padding: 10px; text-align: center; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--input-bg); }
+        .slot.selected { background: var(--blue); color: white; border-color: var(--blue); }
+        .slot.busy { background: #fde8e8; color: #c0392b; cursor: not-allowed; }
+        .submit-btn {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, var(--blue), var(--blue-light));
+            color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px;
+        }
+        .msg { padding: 10px; border-radius: 8px; margin-bottom: 16px; display: none; }
+        .msg.error { background: rgba(192,57,43,0.1); color: var(--red); }
+        .msg.success { background: rgba(26,140,94,0.1); color: var(--success); }
+        .msg.show { display: block; }
+        .success-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        .success-overlay.show { display: flex; }
+        .success-card { background: var(--card-bg); border-radius: 20px; padding: 40px; text-align: center; max-width: 400px; }
+        .btn-new { background: var(--blue); color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; }
+        @media (max-width: 768px) { .main { grid-template-columns: 1fr; } .slots-grid { grid-template-columns: repeat(3, 1fr); } }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand"><div class="nav-logo"></div><div class="nav-title">UCAHRS <span>Clinic Appointment</span></div></div>
+    <div class="nav-actions">
+        <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+        <a href="student-dashboard.html" class="nav-back">← Dashboard</a>
+    </div>
+</nav>
+<div class="hero"><div class="hero-content"><div class="hero-badge">📅 Book an Appointment</div><h1>UNIVEN Main Clinic</h1><p>Book your appointment online.</p></div></div>
+<div class="main">
+    <div class="card">
+        <div class="card-title"><span>📋</span> Appointment Details</div>
+        <div class="msg error" id="errorMsg"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Full Name</label><input type="text" id="patientName" placeholder="Your full name"></div>
+            <div class="form-group"><label>User Type</label><select id="userType"><option value="">Select</option><option value="Student">Student</option><option value="Staff">Staff</option></select></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Student / Staff ID</label><input type="text" id="idNumber" placeholder="e.g. 21012345"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="apptDate" onchange="loadSlots()"></div>
+        </div>
+        <div class="form-row">
+    <div class="form-group">
+        <label>Select Doctor</label>
+        <select id="doctorSelect">
+            <option value="">Loading doctors...</option>
+        </select>
+    </div>
+    <div class="form-group">
+    </div>
+</div>
+        <div class="form-group"><label>Reason</label><textarea id="reason" rows="3" placeholder="Describe your symptoms..."></textarea></div>
+        <div class="form-group"><label>Time Slot</label><div class="slots-grid" id="slotsGrid"><div class="slot">Select a date</div></div></div>
+        <button class="submit-btn" onclick="handleBooking()">Book Appointment</button>
+    </div>
+    <div class="card"><div class="card-title">🕒 Clinic Hours</div><ul style="list-style:none;"><li>Mon–Fri: 08:00 – 16:30</li><li>Sat–Sun: Closed</li></ul></div>
+</div>
+<div class="success-overlay" id="successOverlay"><div class="success-card"><div style="font-size:40px;">✅</div><h2>Booked!</h2><p id="successMsgText"></p><button class="btn-new" onclick="resetForm()">Book Another</button></div></div>
+
+<script>
+    const API = 'http://localhost:3000/api';
+    let selectedTime = '';
+
+    function toggleDarkMode() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
+    document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
+
+    async function loadDoctors() {
+    try {
+        const res = await fetch(API + '/appointments/doctors', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        const doctors = await res.json();
+        const select = document.getElementById('doctorSelect');
+        doctors.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = d.full_name;
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Could not load doctors');
+    }
+}
+document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
+loadDoctors(); 
+
+    async function loadSlots() {
+        const date = document.getElementById('apptDate').value;
+        if (!date) return;
+        const grid = document.getElementById('slotsGrid');
+        grid.innerHTML = '<div class="slot">Loading...</div>';
+        selectedTime = '';
+        try {
+            const res = await fetch(API + '/appointments/availability?date=' + date);
+            if (!res.ok) throw new Error('Server error');
+            const data = await res.json();
+            grid.innerHTML = '';
+            data.slots.forEach(slot => {
+                const div = document.createElement('div');
+                div.className = 'slot' + (slot.status === 'Busy' ? ' busy' : '');
+                div.textContent = slot.status === 'Busy' ? slot.time + ' Busy' : slot.time;
+                if (slot.status !== 'Busy') div.onclick = () => { document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected')); div.classList.add('selected'); selectedTime = slot.time; };
+                grid.appendChild(div);
+            });
+        } catch (err) {
+            grid.innerHTML = '<div class="slot">Error loading slots</div>';
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+
+    async function handleBooking() {
+        const patientName = document.getElementById('patientName').value.trim();
+        const userType = document.getElementById('userType').value;
+        const idNumber = document.getElementById('idNumber').value.trim();
+        const date = document.getElementById('apptDate').value;
+        const reason = document.getElementById('reason').value.trim();
+        const time = selectedTime;
+        const doctor_id = document.getElementById('doctorSelect').value;
+        if (!patientName || !userType || !idNumber || !date || !time || !reason || !doctor_id) return showError('Please fill all fields including selecting a doctor.');
+        const btn = event.target;
+        btn.textContent = 'Booking...';
+        try {
+            const res = await fetch(API + '/appointments/book', {
+                method: 'POST', headers: { 'Content-Type': 'application/json',
+                    'Authorization': 'Bearer '+ localStorage.getItem('token')
+                },
+                body: JSON.stringify({ patientName, userType, idNumber, date, time, reason, doctor_id })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('successMsgText').innerHTML = `Name: ${patientName}<br>Date: ${date}<br>Time: ${time}`;
+                document.getElementById('successOverlay').classList.add('show');
+            } else showError(data.message || 'Booking failed');
+        } catch (err) { showError('Server error. Is backend running?'); }
+        finally { btn.textContent = 'Book Appointment'; }
+    }
+
+    function resetForm() {
+        document.getElementById('successOverlay').classList.remove('show');
+        document.getElementById('patientName').value = '';
+        document.getElementById('userType').value = '';
+        document.getElementById('idNumber').value = '';
+        document.getElementById('apptDate').value = '';
+        document.getElementById('reason').value = '';
+        document.getElementById('slotsGrid').innerHTML = '<div class="slot">Select a date</div>';
+        selectedTime = '';
+    }
+    
+</script>
+</body>
+</html>

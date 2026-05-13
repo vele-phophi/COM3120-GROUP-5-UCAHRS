@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurse Dashboard – UCAHRS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ===== CSS VARIABLES (matches admin dashboard) ===== */
+        :root {
+            --blue: #1a3c6e; --blue-light: #2a5ca8; --red: #c0392b;
+            --gold: #b8962e; --gold-light: #d4af5a; --white: #ffffff;
+            --bg: #f0f2f7; --card-bg: #ffffff;
+            --text-dark: #1a1a2e; --text-muted: #6b7280;
+            --success: #1a8c5e; --warning: #d4800a;
+            --border: #e5e2db; --table-hover: #faf8f4;
+            --sidebar-bg: linear-gradient(180deg, #0f2040 0%, #1a3060 100%);
+            --sidebar-text: rgba(255,255,255,0.65);
+            --sidebar-active: rgba(255,255,255,0.12);
+            --shadow: 0 2px 16px rgba(0,0,0,0.07);
+            --input-bg: #f8f7f5;
+        }
+        [data-theme="dark"] {
+            --bg: #0d1117; --card-bg: #161b22;
+            --text-dark: #e6edf3; --text-muted: #8b949e;
+            --border: #30363d; --table-hover: #1c2128;
+            --sidebar-bg: linear-gradient(180deg, #060d16 0%, #0d1a2e 100%);
+            --input-bg: #1c2128; --white: #161b22;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "DM Sans", sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            color: var(--text-dark);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 260px; min-height: 100vh;
+            background: var(--sidebar-bg);
+            position: fixed; top: 0; left: 0; z-index: 50;
+            display: flex; flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-logo { width: 36px; height: 36px; background: white; border-radius: 8px; flex-shrink: 0; }
+        .sidebar-title { font-family: "Playfair Display", serif; font-size: 15px; color: #fff; line-height: 1.2; }
+        .sidebar-title span { font-size: 10px; color: rgba(255,255,255,0.45); font-family: "DM Sans", sans-serif; display: block; }
+        .role-badge {
+            margin: 14px 20px 0; padding: 6px 12px;
+            background: rgba(184,150,46,0.15); border: 1px solid rgba(184,150,46,0.3);
+            border-radius: 8px; font-size: 11px; color: var(--gold-light);
+            text-align: center; text-transform: uppercase;
+        }
+        .nav-section { padding: 16px 12px 8px; }
+        .nav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.3); padding: 0 8px; margin-bottom: 6px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px; font-size: 13px;
+            color: var(--sidebar-text); cursor: pointer; transition: all 0.2s; margin-bottom: 2px;
+            border: none; background: transparent; width: 100%; text-align: left;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 500; }
+        .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 34px; height: 34px; background: rgba(184,150,46,0.2); border: 1px solid rgba(184,150,46,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
+        .user-details strong { display: block; font-size: 12px; color: #fff; }
+        .user-details span { font-size: 11px; color: rgba(255,255,255,0.4); }
+        .logout-btn { margin-top: 10px; width: 100%; padding: 8px; background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.3); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { background: rgba(192,57,43,0.25); color: #fff; }
+
+        /* ===== MAIN ===== */
+        .main { margin-left: 260px; flex: 1; padding: 28px; transition: margin-left 0.3s; }
+
+        /* ===== PAGE HEADER ===== */
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-header h1 { font-family: "Playfair Display", serif; font-size: 26px; color: var(--text-dark); }
+        .page-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+
+        /* ===== STAT CARDS ===== */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: var(--card-bg); border-radius: 14px; padding: 20px;
+            box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px;
+            animation: fadeSlideUp 0.4s ease both; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .stat-icon { font-size: 28px; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-info strong { display: block; font-size: 24px; color: var(--text-dark); font-weight: 600; }
+        .stat-info span { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== CARD ===== */
+        .card { background: var(--card-bg); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+        .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .card-title { font-family: "Playfair Display", serif; font-size: 17px; color: var(--text-dark); }
+        .today-badge { background: rgba(26,140,94,0.15); color: var(--success); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-left: 10px; }
+
+        /* ===== BUTTONS ===== */
+        .btn { padding: 8px 16px; border-radius: 9px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(26,60,110,0.3); }
+        .btn-outline { background: var(--table-hover); border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-outline:hover { background: var(--border); color: var(--text-dark); }
+        .dark-toggle { width: 38px; height: 38px; border-radius: 10px; background: var(--table-hover); border: 1px solid var(--border); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .dark-toggle:hover { background: var(--border); }
+
+        /* ===== FILTER TABS ===== */
+        .filter-tabs { display: flex; gap: 8px; padding: 16px 24px 0; flex-wrap: wrap; }
+        .tab {
+            padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 500;
+            background: transparent; border: 1.5px solid var(--border); cursor: pointer;
+            color: var(--text-muted); transition: all 0.2s;
+        }
+        .tab.active { background: var(--blue); border-color: var(--blue); color: white; }
+        .tab:hover:not(.active) { background: var(--table-hover); }
+
+        /* ===== TABLE ===== */
+        table { width: 100%; border-collapse: collapse; }
+        thead th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+        tbody td { padding: 14px 16px; font-size: 13px; color: var(--text-dark); border-bottom: 1px solid var(--border); }
+        tr:hover td { background: var(--table-hover); }
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+
+        /* ===== BADGES ===== */
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 40px; font-size: 11px; font-weight: 600; }
+        .badge-waiting { background: rgba(212,128,10,0.1); color: var(--warning); }
+        .badge-in_progress { background: rgba(26,60,110,0.1); color: var(--blue); }
+        .badge-done { background: rgba(26,140,94,0.1); color: var(--success); }
+        .badge-confirmed { background: rgba(184,150,46,0.1); color: var(--gold); }
+        .badge-completed { background: rgba(26,140,94,0.1); color: var(--success); }
+        .badge-cancelled { background: rgba(192,57,43,0.1); color: var(--red); }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-btn { padding: 5px 12px; border-radius: 6px; border: none; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; margin-right: 5px; }
+        .btn-progress { background: rgba(212,128,10,0.12); color: var(--warning); }
+        .btn-progress:hover { background: rgba(212,128,10,0.2); }
+        .btn-done { background: rgba(26,140,94,0.12); color: var(--success); }
+        .btn-done:hover { background: rgba(26,140,94,0.2); }
+        .btn-checkin { background: rgba(26,60,110,0.1); color: var(--blue); }
+        .btn-checkin:hover { background: rgba(26,60,110,0.2); }
+
+        /* ===== ANIMATIONS & RESPONSIVE ===== */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hamburger { display: none; width: 38px; height: 38px; border-radius: 10px; background: var(--table-hover); border: 1px solid var(--border); cursor: pointer; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .hamburger span { width: 18px; height: 2px; background: var(--text-dark); border-radius: 2px; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+
+        @media(max-width: 900px) {
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.show { display: block; }
+            .main { margin-left: 0; padding: 20px 16px; }
+            .hamburger { display: flex; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media(max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .filter-tabs { padding: 12px 16px 0; }
+            thead th:nth-child(3), tbody td:nth-child(3),
+            thead th:nth-child(4), tbody td:nth-child(4) { display: none; }
+        }
+
+        /* ===== SESSION TIMEOUT OVERLAY ===== */
+        .timeout-overlay { display: none; position: fixed; inset: 0; background: rgba(10,25,60,0.85); z-index: 9999; align-items: center; justify-content: center; }
+        .timeout-overlay.show { display: flex; }
+        .timeout-card { background: var(--card-bg); border-radius: 20px; padding: 40px 36px; text-align: center; max-width: 360px; box-shadow: 0 24px 64px rgba(0,0,0,0.3); }
+        .timeout-icon { font-size: 52px; margin-bottom: 16px; }
+        .timeout-card h2 { font-family: "Playfair Display", serif; font-size: 20px; color: var(--text-dark); margin-bottom: 8px; }
+        .timeout-count { font-size: 40px; font-weight: 700; color: var(--red); margin-bottom: 20px; }
+        .timeout-btn { padding: 12px 28px; background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo"></div>
+        <div class="sidebar-title">UCAHRS <span>Nurse Portal</span></div>
+    </div>
+    <div class="role-badge">👩‍⚕️ Nurse</div>
+    <div class="nav-section">
+        <div class="nav-label">Clinical</div>
+        <button class="nav-item active" onclick="showSection('queue', this)"><span class="nav-icon">🏥</span> Patient Queue</button>
+        <button class="nav-item" onclick="showSection('appointments', this)"><span class="nav-icon">📅</span> Appointments</button>
+    </div>
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar" id="avatarInitials">NR</div>
+            <div class="user-details">
+                <strong id="sidebarName">Nurse</strong>
+                <span>Registered Nurse</span>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">← Sign Out</button>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <button class="hamburger" onclick="openSidebar()"><span></span><span></span><span></span></button>
+            <div>
+                <h1 id="pageTitle">Nurse Dashboard</h1>
+                <p id="pageSubtitle">Manage patient queue and appointments — UNIVEN Clinic</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="dark-toggle" onclick="toggleDarkMode()" id="darkBtn">🌙</button>
+            <button class="btn btn-outline" onclick="refreshCurrentView()">↺ Refresh</button>
+        </div>
+    </div>
+
+    <!-- STATS CARDS (visible in both sections) -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(26,60,110,0.1);">📋</div>
+            <div class="stat-info"><strong id="totalToday">—</strong><span>Total Today</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(212,128,10,0.1);">⏳</div>
+            <div class="stat-info"><strong id="waitingCount">—</strong><span>Waiting</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(26,60,110,0.1);">🔄</div>
+            <div class="stat-info"><strong id="inProgressCount">—</strong><span>In Progress</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(26,140,94,0.1);">✅</div>
+            <div class="stat-info"><strong id="doneCount">—</strong><span>Completed</span></div>
+        </div>
+    </div>
+
+    <!-- QUEUE SECTION -->
+    <div id="section-queue">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Patient Queue <span class="today-badge">Today</span></span>
+            </div>
+            <div class="filter-tabs">
+                <button class="tab active" onclick="filterQueue('all', this)">All</button>
+                <button class="tab" onclick="filterQueue('waiting', this)">Waiting</button>
+                <button class="tab" onclick="filterQueue('in_progress', this)">In Progress</button>
+                <button class="tab" onclick="filterQueue('done', this)">Completed</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Check-in Time</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="queueTableBody">
+                        <tr><td colspan="6" class="empty-state">Loading queue...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPOINTMENTS SECTION -->
+    <div id="section-appointments" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Today's Appointments</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Time</th><th>Doctor</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="appointmentsTableBody">
+                        <tr><td colspan="7" class="empty-state">Loading appointments...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- SESSION TIMEOUT OVERLAY -->
+<div class="timeout-overlay" id="timeoutOverlay">
+    <div class="timeout-card">
+        <div class="timeout-icon">⏰</div>
+        <h2>Session Expiring</h2>
+        <p>You have been inactive. Your session will expire in:</p>
+        <div class="timeout-count" id="timeoutCount">60</div>
+        <button class="timeout-btn" onclick="resetTimeout()">Stay Logged In</button>
+    </div>
+</div>
+
+<script>
+    
+function authHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('token')
+    };
+}
+
+    const API = 'http://localhost:3000/api';
+    let token = localStorage.getItem('token');
+    let user = JSON.parse(localStorage.getItem('user') || '{}');
+    let allQueue = [];
+    let currentQueueFilter = 'all';
+    let currentView = 'queue';
+
+    if (!token || user.role !== 'nurse') window.location.href = 'index.html';
+
+    // Sidebar user info
+    document.getElementById('sidebarName').textContent = user.full_name || 'Nurse';
+    let initials = (user.full_name || 'NR').split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('avatarInitials').textContent = initials;
+
+    // Theme handling (matches admin dashboard)
+    function toggleDarkMode() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('darkBtn').textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('darkBtn').textContent = '☀️';
+    }
+
+    // Mobile sidebar
+    function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+    // Navigation
+    function showSection(section, btn) {
+        currentView = section;
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        document.getElementById('section-queue').style.display = section === 'queue' ? 'block' : 'none';
+        document.getElementById('section-appointments').style.display = section === 'appointments' ? 'block' : 'none';
+        document.getElementById('pageTitle').innerText = section === 'queue' ? 'Nurse Dashboard' : 'Appointments';
+        document.getElementById('pageSubtitle').innerText = section === 'queue' ? 'Manage patient queue and visits' : 'All appointments scheduled for today';
+        closeSidebar();
+        if (section === 'appointments') loadAppointments();
+        else refreshQueue(); // refresh stats anyway
+    }
+
+    function refreshCurrentView() {
+        if (currentView === 'queue') refreshQueue();
+        else loadAppointments();
+    }
+
+    async function refreshQueue() {
+        await loadQueue();
+        renderQueue(allQueue);
+    }
+
+    async function loadQueue() {
+        try {
+            const res = await fetch(`${API}/queue`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            allQueue = Array.isArray(data) ? data : [];
+            updateStats(allQueue);
+            renderQueue(allQueue);
+        } catch (err) {
+            document.getElementById('queueTableBody').innerHTML = '<tr><td colspan="6" class="empty-state">Could not load queue. Is the server running?</td></tr>';
+        }
+    }
+
+    function updateStats(queue) {
+        document.getElementById('totalToday').innerText = queue.length;
+        document.getElementById('waitingCount').innerText = queue.filter(q => q.status === 'waiting').length;
+        document.getElementById('inProgressCount').innerText = queue.filter(q => q.status === 'in_progress').length;
+        document.getElementById('doneCount').innerText = queue.filter(q => q.status === 'done').length;
+    }
+
+    function renderQueue(queue) {
+        const filtered = currentQueueFilter === 'all' ? queue : queue.filter(q => q.status === currentQueueFilter);
+        const tbody = document.getElementById('queueTableBody');
+        if (!filtered.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No patients in queue.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = filtered.map((q, idx) => `
+            <tr>
+                <td>${idx+1}</td>
+                <td><strong>${q.student_name || 'Patient'}</strong></td>
+                <td>${new Date(q.check_in_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                <td>${q.reason || '—'}</td>
+                <td><span class="badge badge-${q.status}">${q.status.replace('_', ' ')}</span></td>
+                <td>
+                    ${q.status === 'waiting' ? `<button class="action-btn btn-progress" onclick="updateQueueStatus(${q.id}, 'in_progress')">▶ Start</button>` : ''}
+                    ${q.status === 'in_progress' ? `<button class="action-btn btn-done" onclick="updateQueueStatus(${q.id}, 'done')">✓ Complete</button>` : ''}
+                    ${q.status === 'done' ? '<span style="color:#9ca3af;font-size:12px;">Completed</span>' : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function filterQueue(status, btn) {
+        currentQueueFilter = status;
+        document.querySelectorAll('#section-queue .tab').forEach(t => t.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        renderQueue(allQueue);
+    }
+
+    async function updateQueueStatus(id, status) {
+        try {
+            await fetch(`${API}/queue/${id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            await loadQueue();
+        } catch (err) { alert('Could not update status.'); }
+    }
+
+    // Appointments
+    async function loadAppointments() {
+        try {
+            const res = await fetch(`${API}/appointments/today`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            const appointments = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('appointmentsTableBody');
+            if (!appointments.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No appointments today.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = appointments.map((a, idx) => `
+                <tr>
+                    <td>${idx+1}</td>
+                    <td><strong>${a.student_name || 'Student'}</strong></td>
+                    <td>${a.appointment_time || '—'}</td>
+                    <td>${a.doctor_name || 'Doctor'}</td>
+                    <td>${a.reason || '—'}</td>
+                    <td><span class="badge badge-${a.status}">${a.status}</span></td>
+                    <td>${a.status === 'confirmed' ? `<button class="action-btn btn-checkin" onclick="checkInPatient(${a.id})">✓ Check In</button>` : '—'}</td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            document.getElementById('appointmentsTableBody').innerHTML = '<tr><td colspan="7" class="empty-state">Could not load appointments.</td></tr>';
+        }
+    }
+
+    async function checkInPatient(appointmentId) {
+        try {
+            await fetch(`${API}/queue/checkin`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointment_id: appointmentId })
+            });
+            alert('Patient checked in successfully!');
+            if (currentView === 'appointments') loadAppointments();
+            refreshQueue();
+        } catch (err) { alert('Could not check in patient.'); }
+    }
+
+    // Logout
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    }
+
+    // Session timeout (30 minutes)
+    const TIMEOUT_MS = (30 * 60 - 60) * 1000;
+    let timeoutTimer, countdownTimer;
+    function startTimeout() {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = setTimeout(showTimeoutWarning, TIMEOUT_MS);
+    }
+    function showTimeoutWarning() {
+        let countdown = 60;
+        document.getElementById('timeoutCount').textContent = countdown;
+        document.getElementById('timeoutOverlay').classList.add('show');
+        countdownTimer = setInterval(() => {
+            countdown--;
+            document.getElementById('timeoutCount').textContent = countdown;
+            if (countdown <= 0) {
+                clearInterval(countdownTimer);
+                logout();
+            }
+        }, 1000);
+    }
+    function resetTimeout() {
+        clearTimeout(timeoutTimer);
+        clearInterval(countdownTimer);
+        document.getElementById('timeoutOverlay').classList.remove('show');
+        localStorage.setItem('lastActivity', Date.now().toString());
+        startTimeout();
+    }
+    // Activity listeners
+    ['mousemove','keydown','click','scroll','touchstart'].forEach(e => document.addEventListener(e, resetTimeout, { passive: true }));
+    startTimeout();
+
+    // Initial load
+    loadQueue();
+</script>
+</body>
+</html>

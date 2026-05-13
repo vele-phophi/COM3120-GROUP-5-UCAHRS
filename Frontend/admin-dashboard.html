@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UCAHRS – Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ===== CSS VARIABLES ===== */
+        :root {
+            --blue: #1a3c6e; --blue-light: #2a5ca8; --red: #c0392b;
+            --gold: #b8962e; --gold-light: #d4af5a; --white: #ffffff;
+            --bg: #f0f2f7; --card-bg: #ffffff;
+            --text-dark: #1a1a2e; --text-muted: #6b7280;
+            --success: #1a8c5e; --warning: #d4800a;
+            --border: #e5e2db; --table-hover: #faf8f4;
+            --sidebar-bg: linear-gradient(180deg, #0f2040 0%, #1a3060 100%);
+            --sidebar-text: rgba(255,255,255,0.65);
+            --sidebar-active: rgba(255,255,255,0.12);
+            --shadow: 0 2px 16px rgba(0,0,0,0.07);
+            --input-bg: #f8f7f5;
+        }
+        [data-theme="dark"] {
+            --bg: #0d1117; --card-bg: #161b22;
+            --text-dark: #e6edf3; --text-muted: #8b949e;
+            --border: #30363d; --table-hover: #1c2128;
+            --sidebar-bg: linear-gradient(180deg, #060d16 0%, #0d1a2e 100%);
+            --input-bg: #1c2128; --white: #161b22;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+        }
+
+        /* ===== RESET ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "DM Sans", sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            color: var(--text-dark);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 240px; min-height: 100vh;
+            background: var(--sidebar-bg);
+            position: fixed; top: 0; left: 0; z-index: 50;
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            transition: width 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-logo { width: 36px; height: 36px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
+        .sidebar-title { font-family: "Playfair Display", serif; font-size: 15px; color: #fff; line-height: 1.2; }
+        .sidebar-title span { font-size: 10px; color: rgba(255,255,255,0.45); font-family: "DM Sans", sans-serif; display: block; }
+        .admin-badge {
+            margin: 14px 20px 0; padding: 6px 12px;
+            background: rgba(184,150,46,0.15); border: 1px solid rgba(184,150,46,0.3);
+            border-radius: 8px; font-size: 11px; color: var(--gold-light);
+            letter-spacing: 1px; text-transform: uppercase; text-align: center;
+        }
+        .nav-section { padding: 16px 12px 8px; }
+        .nav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.3); padding: 0 8px; margin-bottom: 6px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px; font-size: 13px;
+            color: var(--sidebar-text); cursor: pointer; transition: all 0.2s; margin-bottom: 2px;
+            border: none; background: transparent; width: 100%; text-align: left; font-family: "DM Sans", sans-serif;
+            white-space: nowrap; overflow: hidden;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 500; }
+        .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 34px; height: 34px; background: rgba(184,150,46,0.2); border: 1px solid rgba(184,150,46,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .user-details strong { display: block; font-size: 12px; color: #fff; }
+        .user-details span { font-size: 11px; color: rgba(255,255,255,0.4); }
+        .logout-btn { margin-top: 10px; width: 100%; padding: 8px; background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.3); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer; font-family: "DM Sans", sans-serif; transition: all 0.2s; }
+        .logout-btn:hover { background: rgba(192,57,43,0.25); color: #fff; }
+
+        /* ===== MAIN ===== */
+        .main { margin-left: 240px; flex: 1; padding: 28px; transition: margin-left 0.3s; }
+
+        /* ===== PAGE HEADER ===== */
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-header h1 { font-family: "Playfair Display", serif; font-size: 26px; color: var(--text-dark); }
+        .page-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        /* ===== STAT CARDS ===== */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: var(--card-bg); border-radius: 14px; padding: 20px;
+            box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px;
+            animation: fadeSlideUp 0.4s ease both; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .stat-card:nth-child(1) { animation-delay: 0.05s; }
+        .stat-card:nth-child(2) { animation-delay: 0.10s; }
+        .stat-card:nth-child(3) { animation-delay: 0.15s; }
+        .stat-card:nth-child(4) { animation-delay: 0.20s; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-info strong { display: block; font-size: 24px; color: var(--text-dark); font-weight: 600; }
+        .stat-info span { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== CHARTS SECTION ===== */
+        .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-card { background: var(--card-bg); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; animation: fadeSlideUp 0.4s ease 0.25s both; }
+        .chart-card-header { padding: 18px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+        .chart-card-header h2 { font-family: "Playfair Display", serif; font-size: 17px; color: var(--text-dark); }
+        .chart-body { padding: 16px 20px 20px; position: relative; }
+        .chart-body canvas { max-height: 220px; }
+
+        /* ===== GRID 2 ===== */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card-bg); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; animation: fadeSlideUp 0.4s ease 0.3s both; transition: background 0.3s; }
+        .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .card-header h2 { font-family: "Playfair Display", serif; font-size: 17px; color: var(--text-dark); }
+        .card-body { padding: 20px 24px; }
+
+        /* ===== TABLE ===== */
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.8px; text-transform: uppercase; background: var(--table-hover); }
+        td { padding: 13px 16px; font-size: 13px; color: var(--text-dark); border-top: 1px solid var(--border); transition: background 0.15s; }
+        tr:hover td { background: var(--table-hover); }
+
+        /* ===== BADGES ===== */
+        .role-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+        .role-badge.doctor { background: rgba(26,60,110,0.1); color: var(--blue); }
+        .role-badge.nurse { background: rgba(26,140,94,0.1); color: var(--success); }
+        .role-badge.admin { background: rgba(184,150,46,0.15); color: var(--gold); }
+        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+        .status-badge.checked-in { background: rgba(26,60,110,0.1); color: var(--blue); }
+        .status-badge.completed { background: rgba(26,140,94,0.1); color: var(--success); }
+        .status-badge.cancelled { background: rgba(192,57,43,0.1); color: var(--red); }
+        .status-badge.in-progress { background: rgba(212,128,10,0.1); color: var(--warning); }
+        .status-badge.pending { background: rgba(184,150,46,0.1); color: var(--gold); }
+
+        /* ===== BUTTONS ===== */
+        .action-btn { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; border: none; font-family: "DM Sans", sans-serif; transition: all 0.2s; }
+        .btn-delete { background: rgba(192,57,43,0.08); color: var(--red); }
+        .btn-delete:hover { background: rgba(192,57,43,0.18); }
+
+        .refresh-btn { padding: 6px 12px; background: var(--table-hover); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; cursor: pointer; font-family: "DM Sans", sans-serif; color: var(--text-muted); transition: all 0.2s; }
+        .refresh-btn:hover { background: var(--border); color: var(--text-dark); }
+
+        .export-btn {
+            padding: 10px 18px; background: linear-gradient(135deg, #b8962e, #d4af5a);
+            color: #fff; border: none; border-radius: 9px; font-family: "DM Sans", sans-serif;
+            font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(184,150,46,0.35); }
+
+        /* ===== DARK MODE TOGGLE ===== */
+        .dark-toggle {
+            width: 38px; height: 38px; border-radius: 10px;
+            background: var(--table-hover); border: 1px solid var(--border);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; transition: all 0.2s; color: var(--text-dark);
+        }
+        .dark-toggle:hover { background: var(--border); }
+
+        /* ===== FORM ===== */
+        .add-user-form { display: grid; gap: 12px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 11px 14px; background: var(--input-bg); border: 1.5px solid var(--border);
+            border-radius: 9px; font-family: "DM Sans", sans-serif; font-size: 13px; color: var(--text-dark);
+            outline: none; transition: all 0.2s; appearance: none; -webkit-appearance: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--blue-light); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(42,92,168,0.08); }
+        .select-wrapper { position: relative; }
+        .select-wrapper::after { content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .add-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: #fff; border: none; border-radius: 9px; font-family: "DM Sans", sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(26,60,110,0.3); }
+
+        /* ===== MESSAGES ===== */
+        .msg { padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; display: none; }
+        .msg.error { background: rgba(192,57,43,0.08); border: 1px solid rgba(192,57,43,0.2); color: var(--red); }
+        .msg.success { background: rgba(26,140,94,0.08); border: 1px solid rgba(26,140,94,0.2); color: var(--success); }
+        .msg.show { display: block; }
+
+        /* ===== FILTER BAR ===== */
+        .filter-bar { display: flex; gap: 8px; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+        .filter-btn { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); font-family: "DM Sans", sans-serif; transition: all 0.2s; }
+        .filter-btn.active, .filter-btn:hover { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .filter-search { margin-left: auto; padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--input-bg); font-family: "DM Sans", sans-serif; font-size: 12px; color: var(--text-dark); outline: none; width: 180px; }
+        .filter-search:focus { border-color: var(--blue-light); }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        .loading-pulse { animation: pulse 1.4s ease infinite; }
+
+        /* ===== MOBILE HAMBURGER ===== */
+        .hamburger { display: none; width: 38px; height: 38px; border-radius: 10px; background: var(--table-hover); border: 1px solid var(--border); cursor: pointer; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .hamburger span { display: block; width: 18px; height: 2px; background: var(--text-dark); border-radius: 2px; transition: all 0.3s; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+
+        /* ===== RESPONSIVE ===== */
+        @media(max-width: 1100px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+        @media(max-width: 900px) {
+            .sidebar { transform: translateX(-100%); width: 240px; transition: transform 0.3s ease; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.show { display: block; }
+            .main { margin-left: 0; padding: 20px 16px; }
+            .hamburger { display: flex; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .header-actions { gap: 6px; }
+        }
+        @media(max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .filter-bar { gap: 6px; }
+            .filter-search { width: 100%; margin-left: 0; }
+            table th:nth-child(3), table td:nth-child(3),
+            table th:nth-child(5), table td:nth-child(5),
+            table th:nth-child(6), table td:nth-child(6) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ===== SIDEBAR ===== -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <img src="data:image/jpeg;base64,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" alt="Logo" class="sidebar-logo">
+        <div class="sidebar-title">UCAHRS <span>Admin Panel</span></div>
+    </div>
+    <div class="admin-badge">&#9733; Administrator</div>
+    <div class="nav-section">
+        <div class="nav-label">Management</div>
+        <button class="nav-item active" onclick="showSection('overview', this)"><span class="nav-icon">&#128202;</span><span>Overview</span></button>
+        <button class="nav-item" onclick="showSection('staff', this)"><span class="nav-icon">&#128100;</span><span>Staff Users</span></button>
+        <button class="nav-item" onclick="showSection('appointments', this)"><span class="nav-icon">&#128197;</span><span>All Appointments</span></button>
+    </div>
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar">&#9733;</div>
+            <div class="user-details">
+                <strong id="adminName">Admin</strong>
+                <span>Administrator</span>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">&#8592; Sign Out</button>
+    </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <button class="hamburger" onclick="openSidebar()" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p id="headerDate">System overview and staff management — UNIVEN Clinic</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="dark-toggle" onclick="toggleDark()" id="darkBtn" title="Toggle dark mode">🌙</button>
+            <button class="export-btn" onclick="exportPDF()">📄 Export PDF</button>
+            <button class="refresh-btn" onclick="loadAll()" style="padding:9px 16px;font-size:13px">&#8635; Refresh</button>
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(26,60,110,0.1)">📅</div>
+            <div class="stat-info"><strong id="statAppts">–</strong><span>Total Appointments</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(26,140,94,0.1)">✅</div>
+            <div class="stat-info"><strong id="statCompleted">–</strong><span>Completed</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(184,150,46,0.1)">👤</div>
+            <div class="stat-info"><strong id="statUsers">–</strong><span>Staff Members</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(192,57,43,0.1)">❌</div>
+            <div class="stat-info"><strong id="statCancelled">–</strong><span>Cancelled</span></div>
+        </div>
+    </div>
+
+    <!-- SECTION: OVERVIEW (Charts) -->
+    <div id="section-overview">
+        <div class="charts-grid">
+            <!-- Bar Chart -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>📊 Appointments Per Day</h2>
+                    <span style="font-size:11px;color:var(--text-muted)">Last 7 days</span>
+                </div>
+                <div class="chart-body">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+            <!-- Doughnut Chart -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>🥧 Status Breakdown</h2>
+                </div>
+                <div class="chart-body" style="display:flex;flex-direction:column;align-items:center;">
+                    <canvas id="doughnutChart" style="max-height:190px;max-width:190px;"></canvas>
+                    <div id="legendBox" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:14px;font-size:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff + Add Staff -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header"><h2>➕ Add Staff Member</h2></div>
+                <div class="card-body">
+                    <div class="msg error" id="addError"></div>
+                    <div class="msg success" id="addSuccess"></div>
+                    <div class="add-user-form">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="newName" placeholder="Firstname Surname">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="newEmail" placeholder="name@univen.ac.za">
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <div class="select-wrapper">
+                                <select id="newRole">
+                                    <option value="">Select role</option>
+                                    <option value="doctor">Doctor</option>
+                                    <option value="nurse">Nurse</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="newPassword" placeholder="Minimum 6 characters">
+                        </div>
+                        <button class="add-btn" onclick="addUser()">+ Add Staff Member</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>👥 Staff Members</h2>
+                    <button class="refresh-btn" onclick="loadUsers()">&#8635;</button>
+                </div>
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="4" class="empty-state loading-pulse">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION: STAFF (dedicated) -->
+    <div id="section-staff" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <h2>👥 All Staff Members</h2>
+                <button class="refresh-btn" onclick="loadUsers()">&#8635; Refresh</button>
+            </div>
+            <table>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+                <tbody id="usersBody2">
+                    <tr><td colspan="4" class="empty-state">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECTION: APPOINTMENTS -->
+    <div id="section-appointments" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <h2>📋 All Appointments</h2>
+                <div style="display:flex;gap:8px;">
+                    <button class="export-btn" onclick="exportPDF()" style="font-size:12px;padding:7px 14px;">📄 Export PDF</button>
+                    <button class="refresh-btn" onclick="loadAppointments()">&#8635; Refresh</button>
+                </div>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterAppts('all', this)">All</button>
+                <button class="filter-btn" onclick="filterAppts('Completed', this)">Completed</button>
+                <button class="filter-btn" onclick="filterAppts('Checked In', this)">Checked In</button>
+                <button class="filter-btn" onclick="filterAppts('In Progress', this)">In Progress</button>
+                <button class="filter-btn" onclick="filterAppts('Cancelled', this)">Cancelled</button>
+                <input class="filter-search" type="text" id="apptSearch" placeholder="🔍 Search patient..." oninput="searchAppts()">
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Type</th><th>Date</th><th>Time</th><th>Reason</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="apptBody">
+                        <tr><td colspan="8" class="empty-state loading-pulse">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALL APPTS visible in overview too -->
+    <div id="overview-appts" style="margin-top:0;">
+        <div class="card">
+            <div class="card-header">
+                <h2>📋 Recent Appointments</h2>
+                <div style="display:flex;gap:8px;">
+                    <button class="export-btn" onclick="exportPDF()" style="font-size:12px;padding:7px 14px;">📄 Export PDF</button>
+                    <button class="refresh-btn" onclick="loadAppointments()">&#8635;</button>
+                </div>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterAppts('all', this)">All</button>
+                <button class="filter-btn" onclick="filterAppts('Completed', this)">Completed</button>
+                <button class="filter-btn" onclick="filterAppts('Checked In', this)">Checked In</button>
+                <button class="filter-btn" onclick="filterAppts('In Progress', this)">In Progress</button>
+                <button class="filter-btn" onclick="filterAppts('Cancelled', this)">Cancelled</button>
+                <input class="filter-search" type="text" id="apptSearch2" placeholder="🔍 Search patient..." oninput="searchAppts2()">
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Type</th><th>Date</th><th>Time</th><th>Reason</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="apptBody2">
+                        <tr><td colspan="8" class="empty-state loading-pulse">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /main -->
+
+<script>
+    
+    const token = localStorage.getItem('token');
+function authHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+    };
+}
+    /* ===== SETUP ===== */
+    const API = 'http://localhost:3000/api';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('adminName').textContent = user.full_name || 'Admin';
+    document.getElementById('headerDate').textContent =
+        'System overview — ' + new Date().toLocaleDateString('en-ZA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+    let allAppts = [];
+    let currentFilter = 'all';
+    let barChartInst = null, doughnutInst = null;
+
+    /* ===== DARK MODE ===== */
+    function toggleDark() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('darkBtn').textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        setTimeout(rebuildCharts, 50);
+    }
+    // Restore saved theme
+    if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('darkBtn').textContent = '☀️';
+    }
+
+    /* ===== MOBILE SIDEBAR ===== */
+    function openSidebar() {
+        document.getElementById('sidebar').classList.add('open');
+        document.getElementById('overlay').classList.add('show');
+    }
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('overlay').classList.remove('show');
+    }
+
+    /* ===== SECTION NAV ===== */
+    function showSection(name, btn) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        // show/hide
+        document.getElementById('section-overview').style.display = name === 'overview' ? '' : 'none';
+        document.getElementById('overview-appts').style.display = name === 'overview' ? '' : 'none';
+        document.getElementById('section-staff').style.display = name === 'staff' ? '' : 'none';
+        document.getElementById('section-appointments').style.display = name === 'appointments' ? '' : 'none';
+        closeSidebar();
+    }
+
+    /* ===== LOAD DATA ===== */
+    async function loadAll() {
+        await Promise.all([loadUsers(), loadAppointments()]);
+    }
+
+    async function loadUsers() {
+        const tbody = document.getElementById('usersBody');
+        const tbody2 = document.getElementById('usersBody2');
+        try {
+            const res = await fetch(API + '/auth/users');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            document.getElementById('statUsers').textContent = data.length;
+            const rows = data.map(u => `
+                <tr>
+                    <td><strong>${u.full_name||'–'}</strong></td>
+                    <td>${u.email||'–'}</td>
+                    <td><span class="role-badge ${u.role||''}">${u.role||'–'}</span></td>
+                    <td><button class="action-btn btn-delete" onclick="deleteUser(${u.id})">Remove</button></td>
+                </tr>`).join('');
+            tbody.innerHTML = rows || '<tr><td colspan="4" class="empty-state">No staff found.</td></tr>';
+            tbody2.innerHTML = rows || '<tr><td colspan="4" class="empty-state">No staff found.</td></tr>';
+        } catch(e) {
+            const msg = '<tr><td colspan="4" class="empty-state">Connect a /api/auth/users endpoint to manage staff.</td></tr>';
+            tbody.innerHTML = msg; tbody2.innerHTML = msg;
+            document.getElementById('statUsers').textContent = '–';
+        }
+    }
+
+    async function loadAppointments() {
+        try {
+            const res = await fetch(API + '/appointments/all', {
+                headers: { 
+                'Authorization': 'Bearer ' + token  
+            }
+            });
+            const data = await res.json();
+            allAppts = data;
+            updateStats(data);
+            renderAppointments(data);
+            renderCharts(data);
+        } catch(e) {
+            const msg = '<tr><td colspan="8" class="empty-state">Could not load appointments. Is the server running?</td></tr>';
+            document.getElementById('apptBody').innerHTML = msg;
+            document.getElementById('apptBody2').innerHTML = msg;
+            // Render demo charts so page looks good
+            renderCharts(getDemoData());
+        }
+    }
+
+    /* ===== DEMO DATA for charts if API is offline ===== */
+    function getDemoData() {
+        const today = new Date();
+        const statuses = ['Completed','Checked In','In Progress','Cancelled','Completed','Completed','Checked In'];
+        return Array.from({length:28}, (_,i) => {
+            const d = new Date(today); d.setDate(d.getDate() - (i % 7));
+            return { status: statuses[i % statuses.length], date: d.toISOString().slice(0,10), patientName:'Demo Patient', userType:'Student', time:'09:00', reason:'Checkup' };
+        });
+    }
+
+    /* ===== STATS ===== */
+    function updateStats(data) {
+        document.getElementById('statAppts').textContent = data.length;
+        document.getElementById('statCompleted').textContent = data.filter(a => a.status === 'Completed').length;
+        document.getElementById('statCancelled').textContent = data.filter(a => a.status === 'Cancelled').length;
+    }
+
+    /* ===== CHARTS ===== */
+    function getChartColors() {
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+            text: dark ? '#8b949e' : '#6b7280',
+            bg: dark ? '#161b22' : '#ffffff'
+        };
+    }
+
+    function renderCharts(data) {
+        rebuildBarChart(data);
+        rebuildDoughnut(data);
+    }
+
+    function rebuildCharts() {
+        renderCharts(allAppts.length ? allAppts : getDemoData());
+    }
+
+    function rebuildBarChart(data) {
+        if (barChartInst) { barChartInst.destroy(); barChartInst = null; }
+        const days = getLast7Days();
+        const counts = days.map(d => data.filter(a => a.date === d).length);
+        const labels = days.map(d => {
+            const dt = new Date(d + 'T00:00:00');
+            return dt.toLocaleDateString('en-ZA', {weekday:'short', day:'numeric'});
+        });
+        const c = getChartColors();
+        const ctx = document.getElementById('barChart').getContext('2d');
+        barChartInst = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Appointments',
+                    data: counts,
+                    backgroundColor: 'rgba(26,60,110,0.75)',
+                    borderRadius: 7,
+                    borderSkipped: false,
+                    hoverBackgroundColor: 'rgba(42,92,168,0.9)'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: c.grid }, ticks: { color: c.text, font: {size:11} } },
+                    y: { grid: { color: c.grid }, ticks: { color: c.text, font:{size:11}, stepSize:1 }, beginAtZero:true }
+                }
+            }
+        });
+    }
+
+    function rebuildDoughnut(data) {
+        if (doughnutInst) { doughnutInst.destroy(); doughnutInst = null; }
+        const statuses = ['Completed','Checked In','In Progress','Cancelled','Pending'];
+        const colors = ['#1a8c5e','#1a3c6e','#d4800a','#c0392b','#b8962e'];
+        const counts = statuses.map(s => data.filter(a => a.status === s).length);
+        const total = counts.reduce((a,b) => a+b, 0);
+        const ctx = document.getElementById('doughnutChart').getContext('2d');
+        doughnutInst = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: statuses,
+                datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: true, cutout: '68%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.label}: ${ctx.raw} (${total ? Math.round(ctx.raw/total*100) : 0}%)`
+                        }
+                    }
+                }
+            }
+        });
+        // Legend
+        const legendBox = document.getElementById('legendBox');
+        legendBox.innerHTML = statuses.map((s,i) => `
+            <div style="display:flex;align-items:center;gap:5px;">
+                <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>
+                <span style="color:var(--text-muted)">${s} (${counts[i]})</span>
+            </div>`).join('');
+    }
+
+    function getLast7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            days.push(d.toISOString().slice(0,10));
+        }
+        return days;
+    }
+
+    /* ===== APPOINTMENTS TABLE ===== */
+    function renderAppointments(data, tbodyId = null) {
+        const rows = !data.length
+            ? '<tr><td colspan="8" class="empty-state">No appointments found.</td></tr>'
+            : data.map(a => {
+                const sc = (a.status||'').toLowerCase().replace(/ /g,'-');
+                return `<tr>
+                    <td>${a.id||'–'}</td>
+                    <td><strong>${a.patientName||'–'}</strong></td>
+                    <td>${a.userType||'–'}</td>
+                    <td>${a.date||'–'}</td>
+                    <td>${a.time||'–'}</td>
+                    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.reason||''}">${a.reason||'–'}</td>
+                    <td><span class="status-badge ${sc}">${a.status||'–'}</span></td>
+                    <td>${a.status !== 'Cancelled' ? `<button class="action-btn btn-delete" onclick="cancelAppt(${a.id})">Cancel</button>` : '–'}</td>
+                </tr>`;
+            }).join('');
+        if (tbodyId) { document.getElementById(tbodyId).innerHTML = rows; return; }
+        document.getElementById('apptBody').innerHTML = rows;
+        document.getElementById('apptBody2').innerHTML = rows;
+    }
+
+    /* ===== FILTER ===== */
+    function filterAppts(status, btn) {
+        currentFilter = status;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const filtered = status === 'all' ? allAppts : allAppts.filter(a => a.status === status);
+        renderAppointments(filtered);
+    }
+
+    function searchAppts() {
+        const q = document.getElementById('apptSearch').value.toLowerCase();
+        const filtered = allAppts.filter(a =>
+            (a.patientName||'').toLowerCase().includes(q) ||
+            (a.status||'').toLowerCase().includes(q) ||
+            (a.date||'').includes(q)
+        );
+        document.getElementById('apptBody').innerHTML = filtered.length
+            ? filtered.map(a => appointmentRow(a)).join('')
+            : '<tr><td colspan="8" class="empty-state">No results found.</td></tr>';
+    }
+
+    function searchAppts2() {
+        const q = document.getElementById('apptSearch2').value.toLowerCase();
+        const filtered = allAppts.filter(a =>
+            (a.patientName||'').toLowerCase().includes(q) ||
+            (a.status||'').toLowerCase().includes(q) ||
+            (a.date||'').includes(q)
+        );
+        document.getElementById('apptBody2').innerHTML = filtered.length
+            ? filtered.map(a => appointmentRow(a)).join('')
+            : '<tr><td colspan="8" class="empty-state">No results found.</td></tr>';
+    }
+
+    function appointmentRow(a) {
+        const sc = (a.status||'').toLowerCase().replace(/ /g,'-');
+        return `<tr>
+            <td>${a.id||'–'}</td>
+            <td><strong>${a.patientName||'–'}</strong></td>
+            <td>${a.userType||'–'}</td>
+            <td>${a.date||'–'}</td>
+            <td>${a.time||'–'}</td>
+            <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.reason||'–'}</td>
+            <td><span class="status-badge ${sc}">${a.status||'–'}</span></td>
+            <td>${a.status !== 'Cancelled' ? `<button class="action-btn btn-delete" onclick="cancelAppt(${a.id})">Cancel</button>` : '–'}</td>
+        </tr>`;
+    }
+
+    /* ===== ADD USER ===== */
+    async function addUser() {
+        const full_name = document.getElementById('newName').value.trim();
+        const email = document.getElementById('newEmail').value.trim();
+        const role = document.getElementById('newRole').value;
+        const password = document.getElementById('newPassword').value;
+        const errEl = document.getElementById('addError');
+        const sucEl = document.getElementById('addSuccess');
+        if (!full_name || !email || !role || !password) {
+            errEl.textContent = 'Please fill in all fields.';
+            errEl.className = 'msg error show'; sucEl.className = 'msg success'; return;
+        }
+        try {
+            const res = await fetch(API + '/auth/register/staff', {
+                method: 'POST', headers: authHeaders(),
+                body: JSON.stringify({ full_name, staff_email: email, role, password, staff_id: 'STAFF-' + Date.now() })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sucEl.textContent = 'Staff member added successfully!';
+                sucEl.className = 'msg success show'; errEl.className = 'msg error';
+                ['newName','newEmail','newRole','newPassword'].forEach(id => document.getElementById(id).value = '');
+                loadUsers();
+            } else {
+                errEl.textContent = data.message || 'Failed to add user.';
+                errEl.className = 'msg error show'; sucEl.className = 'msg success';
+            }
+        } catch(e) {
+            errEl.textContent = 'Server error. Is the backend running?';
+            errEl.className = 'msg error show';
+        }
+    }
+
+    /* ===== DELETE USER ===== */
+    async function deleteUser(id) {
+        if (!confirm('Remove this staff member?')) return;
+        try {
+            await fetch(API + '/auth/users/' + id, { method: 'DELETE' });
+            loadUsers();
+        } catch(e) { alert('Could not remove user.'); }
+    }
+
+    /* ===== CANCEL APPOINTMENT ===== */
+    async function cancelAppt(id) {
+        if (!confirm('Cancel this appointment?')) return;
+        try {
+            const res = await fetch(API + '/appointments/cancel/' + id, { method: 'DELETE' });
+            if (res.ok) loadAppointments();
+        } catch(e) { alert('Could not cancel.'); }
+    }
+
+    /* ===== EXPORT PDF ===== */
+    function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        // Header
+        doc.setFillColor(15, 32, 64);
+        doc.rect(0, 0, 297, 22, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('UCAHRS – Appointment Report', 14, 14);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('Generated: ' + new Date().toLocaleString('en-ZA'), 220, 14);
+
+        // Stats row
+        doc.setTextColor(30, 30, 60);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        const total = allAppts.length;
+        const completed = allAppts.filter(a => a.status === 'Completed').length;
+        const cancelled = allAppts.filter(a => a.status === 'Cancelled').length;
+        const inprog = allAppts.filter(a => a.status === 'In Progress').length;
+        doc.text(`Total: ${total}   Completed: ${completed}   Cancelled: ${cancelled}   In Progress: ${inprog}`, 14, 32);
+
+        // Table headers
+        const headers = ['#', 'Patient', 'Type', 'Date', 'Time', 'Reason', 'Status'];
+        const colW = [12, 50, 28, 28, 22, 60, 28];
+        let y = 40;
+        doc.setFillColor(240, 242, 247);
+        doc.rect(10, y - 5, 277, 8, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(80, 80, 120);
+        let x = 14;
+        headers.forEach((h, i) => { doc.text(h, x, y); x += colW[i]; });
+
+        // Table rows
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(30, 30, 60);
+        const data = allAppts.length ? allAppts : getDemoData();
+        data.forEach((a, idx) => {
+            y += 8;
+            if (y > 190) { doc.addPage(); y = 20; }
+            if (idx % 2 === 0) { doc.setFillColor(249, 248, 245); doc.rect(10, y-5, 277, 8, 'F'); }
+            x = 14;
+            const vals = [String(a.id||idx+1), a.patientName||'–', a.userType||'–', a.date||'–', a.time||'–', (a.reason||'–').slice(0,40), a.status||'–'];
+            vals.forEach((v, i) => { doc.text(String(v), x, y); x += colW[i]; });
+        });
+
+        // Footer
+        doc.setTextColor(140, 140, 160);
+        doc.setFontSize(7);
+        doc.text('UNICAHRS – University of Venda Clinic Appointment & Health Records System', 14, 200);
+
+        doc.save('UCAHRS-Appointments-' + new Date().toISOString().slice(0,10) + '.pdf');
+    }
+
+    /* ===== LOGOUT ===== */
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    }
+
+    /* ===== INIT ===== */
+    loadAll();
+</script>
+</body>
+</html>

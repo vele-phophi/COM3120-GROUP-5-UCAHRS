@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard – UCAHRS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ===== CSS VARIABLES (matches admin dashboard) ===== */
+        :root {
+            --blue: #1a3c6e; --blue-light: #2a5ca8; --red: #c0392b;
+            --gold: #b8962e; --gold-light: #d4af5a; --white: #ffffff;
+            --bg: #f0f2f7; --card-bg: #ffffff;
+            --text-dark: #1a1a2e; --text-muted: #6b7280;
+            --success: #1a8c5e; --warning: #d4800a;
+            --border: #e5e2db; --table-hover: #faf8f4;
+            --sidebar-bg: linear-gradient(180deg, #0f2040 0%, #1a3060 100%);
+            --sidebar-text: rgba(255,255,255,0.65);
+            --sidebar-active: rgba(255,255,255,0.12);
+            --shadow: 0 2px 16px rgba(0,0,0,0.07);
+            --input-bg: #f8f7f5;
+        }
+        [data-theme="dark"] {
+            --bg: #0d1117; --card-bg: #161b22;
+            --text-dark: #e6edf3; --text-muted: #8b949e;
+            --border: #30363d; --table-hover: #1c2128;
+            --sidebar-bg: linear-gradient(180deg, #060d16 0%, #0d1a2e 100%);
+            --input-bg: #1c2128; --white: #161b22;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "DM Sans", sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            color: var(--text-dark);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ===== SIDEBAR (same as admin/nurse) ===== */
+        .sidebar {
+            width: 260px; min-height: 100vh;
+            background: var(--sidebar-bg);
+            position: fixed; top: 0; left: 0; z-index: 50;
+            display: flex; flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-logo { width: 36px; height: 36px; background: white; border-radius: 8px; flex-shrink: 0; }
+        .sidebar-title { font-family: "Playfair Display", serif; font-size: 15px; color: #fff; line-height: 1.2; }
+        .sidebar-title span { font-size: 10px; color: rgba(255,255,255,0.45); font-family: "DM Sans", sans-serif; display: block; }
+        .role-badge {
+            margin: 14px 20px 0; padding: 6px 12px;
+            background: rgba(184,150,46,0.15); border: 1px solid rgba(184,150,46,0.3);
+            border-radius: 8px; font-size: 11px; color: var(--gold-light);
+            text-align: center; text-transform: uppercase;
+        }
+        .nav-section { padding: 16px 12px 8px; }
+        .nav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.3); padding: 0 8px; margin-bottom: 6px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px; font-size: 13px;
+            color: var(--sidebar-text); cursor: pointer; transition: all 0.2s; margin-bottom: 2px;
+            border: none; background: transparent; width: 100%; text-align: left;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 500; }
+        .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 34px; height: 34px; background: rgba(184,150,46,0.2); border: 1px solid rgba(184,150,46,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
+        .user-details strong { display: block; font-size: 12px; color: #fff; }
+        .user-details span { font-size: 11px; color: rgba(255,255,255,0.4); }
+        .logout-btn { margin-top: 10px; width: 100%; padding: 8px; background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.3); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { background: rgba(192,57,43,0.25); color: #fff; }
+
+        /* ===== MAIN ===== */
+        .main { margin-left: 260px; flex: 1; padding: 28px; transition: margin-left 0.3s; }
+
+        /* ===== PAGE HEADER ===== */
+        .page-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+        }
+        .page-header h1 { font-family: "Playfair Display", serif; font-size: 26px; color: var(--text-dark); }
+        .page-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .header-date { text-align: right; }
+        .header-date strong { display: block; font-size: 15px; color: var(--text-dark); }
+        .header-date span { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== STAT CARDS ===== */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card-bg); border-radius: 14px; padding: 20px;
+            box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(26,60,110,0.1); flex-shrink: 0; }
+        .stat-info strong { display: block; font-size: 24px; color: var(--text-dark); font-weight: 600; }
+        .stat-info span { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex; gap: 6px; background: var(--table-hover);
+            border-radius: 12px; padding: 4px; margin-bottom: 20px; width: fit-content;
+        }
+        .tab {
+            padding: 8px 18px; border-radius: 9px; font-size: 13px; font-weight: 500;
+            cursor: pointer; border: none; background: transparent;
+            color: var(--text-muted); transition: all 0.2s;
+        }
+        .tab.active { background: var(--card-bg); color: var(--blue); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+
+        /* ===== CARDS & TABLES ===== */
+        .card { background: var(--card-bg); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+        .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .card-header h2 { font-family: "Playfair Display", serif; font-size: 17px; color: var(--text-dark); }
+
+        .refresh-btn {
+            padding: 7px 14px; background: var(--table-hover); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 12px; cursor: pointer; color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover { background: var(--border); color: var(--text-dark); }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 12px 20px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; background: var(--table-hover); }
+        td { padding: 14px 20px; font-size: 13px; color: var(--text-dark); border-bottom: 1px solid var(--border); }
+        tr:hover td { background: var(--table-hover); }
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 40px; font-size: 11px; font-weight: 600; }
+        .status-badge.checked-in { background: rgba(26,60,110,0.1); color: var(--blue); }
+        .status-badge.in-progress { background: rgba(212,128,10,0.1); color: var(--warning); }
+        .status-badge.completed { background: rgba(26,140,94,0.1); color: var(--success); }
+        .status-badge.cancelled { background: rgba(192,57,43,0.1); color: var(--red); }
+
+        .action-btn {
+            padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+            cursor: pointer; border: none; transition: all 0.2s; margin-right: 4px;
+        }
+        .btn-update { background: rgba(26,60,110,0.08); color: var(--blue); }
+        .btn-update:hover { background: rgba(26,60,110,0.15); }
+        .btn-cancel { background: rgba(192,57,43,0.08); color: var(--red); }
+        .btn-cancel:hover { background: rgba(192,57,43,0.15); }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); z-index: 200;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--card-bg); border-radius: 20px; padding: 32px;
+            width: 520px; max-width: 95vw; max-height: 90vh;
+            overflow-y: auto; animation: popIn 0.3s ease;
+        }
+        @keyframes popIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+        .modal h2 { font-family: "Playfair Display", serif; font-size: 20px; color: var(--text-dark); margin-bottom: 6px; }
+        .modal .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 11px 14px; background: var(--input-bg);
+            border: 1.5px solid var(--border); border-radius: 9px;
+            font-family: "DM Sans", sans-serif; font-size: 13px; color: var(--text-dark);
+            outline: none; transition: all 0.2s;
+        }
+        .form-group textarea { min-height: 70px; resize: vertical; }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--blue-light);
+            background: var(--card-bg);
+            box-shadow: 0 0 0 3px rgba(42,92,168,0.08);
+        }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+        .checkbox-group input { width: 16px; height: 16px; accent-color: var(--blue); }
+        .checkbox-group label { font-size: 13px; color: var(--text-dark); cursor: pointer; font-weight: 400; text-transform: none; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-save {
+            flex: 1; padding: 12px; background: linear-gradient(135deg, var(--blue), var(--blue-light));
+            color: white; border: none; border-radius: 9px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(26,60,110,0.3); }
+        .btn-close { padding: 12px 20px; background: var(--table-hover); border: 1px solid var(--border); border-radius: 9px; cursor: pointer; color: var(--text-muted); }
+
+        /* ===== MESSAGES ===== */
+        .msg { padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; display: none; }
+        .msg.error { background: rgba(192,57,43,0.08); border: 1px solid rgba(192,57,43,0.2); color: var(--red); }
+        .msg.success { background: rgba(26,140,94,0.08); border: 1px solid rgba(26,140,94,0.2); color: var(--success); }
+        .msg.show { display: block; }
+
+        /* ===== DARK MODE TOGGLE & MOBILE ===== */
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .dark-toggle {
+            width: 38px; height: 38px; border-radius: 10px;
+            background: var(--table-hover); border: 1px solid var(--border);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; transition: all 0.2s;
+        }
+        .dark-toggle:hover { background: var(--border); }
+        .hamburger {
+            display: none; width: 38px; height: 38px; border-radius: 10px;
+            background: var(--table-hover); border: 1px solid var(--border);
+            cursor: pointer; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+        }
+        .hamburger span { width: 18px; height: 2px; background: var(--text-dark); border-radius: 2px; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+
+        @media(max-width: 900px) {
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.show { display: block; }
+            .main { margin-left: 0; padding: 20px 16px; }
+            .hamburger { display: flex; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .page-header { flex-direction: column; align-items: flex-start; }
+        }
+        @media(max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .tabs { width: 100%; justify-content: space-between; }
+            .tab { padding: 6px 12px; font-size: 12px; }
+            table th:nth-child(3), table td:nth-child(3),
+            table th:nth-child(5), table td:nth-child(5) { display: none; }
+        }
+
+        /* ===== SESSION TIMEOUT OVERLAY ===== */
+        .timeout-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(10,25,60,0.85); z-index: 9999;
+            align-items: center; justify-content: center;
+        }
+        .timeout-overlay.show { display: flex; }
+        .timeout-card {
+            background: var(--card-bg); border-radius: 20px; padding: 40px 36px;
+            text-align: center; max-width: 360px; box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+        }
+        .timeout-icon { font-size: 52px; margin-bottom: 16px; }
+        .timeout-card h2 { font-family: "Playfair Display", serif; font-size: 20px; color: var(--text-dark); margin-bottom: 8px; }
+        .timeout-count { font-size: 40px; font-weight: 700; color: var(--red); margin-bottom: 20px; }
+        .timeout-btn {
+            padding: 12px 28px; background: linear-gradient(135deg, var(--blue), var(--blue-light));
+            color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo"></div>
+        <div class="sidebar-title">UCAHRS <span>Doctor Portal</span></div>
+    </div>
+    <div class="role-badge">👨‍⚕️ Medical Doctor</div>
+    <div class="nav-section">
+        <div class="nav-label">Clinical</div>
+        <button class="nav-item active" onclick="showTab('appointments', this)"><span class="nav-icon">📅</span> Appointments</button>
+        <button class="nav-item" onclick="showTab('records', this)"><span class="nav-icon">📋</span> Health Records</button>
+    </div>
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">DR</div>
+            <div class="user-details">
+                <strong id="sidebarName">Doctor</strong>
+                <span id="sidebarRole">Staff</span>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">← Sign Out</button>
+    </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <button class="hamburger" onclick="openSidebar()"><span></span><span></span><span></span></button>
+            <div>
+                <h1>Doctor Dashboard</h1>
+                <p>Manage appointments & track patient health records</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="dark-toggle" onclick="toggleDarkMode()" id="darkBtn">🌙</button>
+            <div class="header-date">
+                <strong id="currentDate">-</strong>
+                <span>UNIVEN Main Clinic</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info"><strong id="statTotal">0</strong><span>Total Today</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-info"><strong id="statCompleted">0</strong><span>Completed</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-info"><strong id="statPending">0</strong><span>Pending</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">❌</div>
+            <div class="stat-info"><strong id="statCancelled">0</strong><span>Cancelled</span></div>
+        </div>
+    </div>
+
+    <!-- APPOINTMENTS TAB -->
+    <div id="tabAppointments">
+        <div class="tabs">
+            <button class="tab active" onclick="filterStatus('all', this)">All</button>
+            <button class="tab" onclick="filterStatus('Checked In', this)">Checked In</button>
+            <button class="tab" onclick="filterStatus('In Progress', this)">In Progress</button>
+            <button class="tab" onclick="filterStatus('Completed', this)">Completed</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Today's Appointments</h2>
+                <button class="refresh-btn" onclick="loadAppointments()">↺ Refresh</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Type</th><th>Time</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="appointmentsBody">
+                        <tr><td colspan="7" class="empty-state">Loading appointments...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEALTH RECORDS TAB -->
+    <div id="tabRecords" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <h2>Completed Health Records</h2>
+                <button class="refresh-btn" onclick="loadRecords()">↺ Refresh</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Patient</th><th>Date</th><th>Diagnosis</th><th>Certificate</th></tr>
+                    </thead>
+                    <tbody id="recordsBody">
+                        <tr><td colspan="5" class="empty-state">Loading records...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL FOR HEALTH RECORD -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2>Update Health Record</h2>
+        <p class="subtitle" id="modalPatientName">Patient: -</p>
+        <div class="msg error" id="modalError"></div>
+        <div class="msg success" id="modalSuccess"></div>
+        <input type="hidden" id="modalApptId">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Temperature (°C)</label>
+                <input type="number" id="temperature" placeholder="e.g. 36.6" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Blood Pressure</label>
+                <input type="text" id="bloodPressure" placeholder="e.g. 120/80">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Weight (kg)</label>
+            <input type="number" id="weight" placeholder="e.g. 65" step="0.1">
+        </div>
+        <div class="form-group">
+            <label>Diagnosis</label>
+            <textarea id="diagnosis" placeholder="Enter clinical diagnosis..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Prescription</label>
+            <textarea id="prescription" placeholder="Medication and dosage..."></textarea>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="medCert">
+            <label for="medCert">Issue Medical Certificate</label>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-close" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveRecord()">Save Record</button>
+        </div>
+    </div>
+</div>
+
+<!-- SESSION TIMEOUT OVERLAY -->
+<div class="timeout-overlay" id="timeoutOverlay">
+    <div class="timeout-card">
+        <div class="timeout-icon">⏰</div>
+        <h2>Session Expiring</h2>
+        <p>You have been inactive. Your session will expire in:</p>
+        <div class="timeout-count" id="timeoutCount">60</div>
+        <button class="timeout-btn" onclick="resetTimeout()">Stay Logged In</button>
+    </div>
+</div>
+
+<script>
+
+function authHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+    };
+}
+    const API = 'http://localhost:3000/api';
+    let token = localStorage.getItem('token');
+    let user = JSON.parse(localStorage.getItem('user') || '{}');
+    let allAppointments = [];
+    let currentFilter = 'all';
+
+    // Role check
+    if (!token || user.role !== 'doctor') window.location.href = 'index.html';
+
+    // Set user info
+    const fullName = user.full_name || 'Doctor';
+    const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('sidebarName').textContent = fullName;
+    document.getElementById('sidebarRole').textContent = user.role || 'Doctor';
+
+    const today = new Date();
+    document.getElementById('currentDate').innerHTML = `<strong>${today.toLocaleDateString('en-ZA', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</strong>`;
+
+    // Theme handling
+    function toggleDarkMode() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('darkBtn').textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('darkBtn').textContent = '☀️';
+    }
+
+    // Mobile sidebar
+    function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+    // Tab navigation
+    function showTab(tab, btn) {
+        document.getElementById('tabAppointments').style.display = tab === 'appointments' ? 'block' : 'none';
+        document.getElementById('tabRecords').style.display = tab === 'records' ? 'block' : 'none';
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        btn.classList.add('active');
+        closeSidebar();
+        if (tab === 'records') loadRecords();
+    }
+
+    // Filter appointments
+    function filterStatus(status, btn) {
+        currentFilter = status;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        renderAppointments();
+    }
+
+    // Load appointments from API
+    async function loadAppointments() {
+        try {
+            const res = await fetch(`${API}/appointments/doctor`, {
+                headers: authHeaders()
+            });
+            const data = await res.json();
+            allAppointments = data;
+            updateStats(data);
+            renderAppointments();
+        } catch (err) {
+            document.getElementById('appointmentsBody').innerHTML = '<tr><td colspan="7" class="empty-state">Could not load appointments. Is the server running?</td></tr>';
+        }
+    }
+
+    function updateStats(appointments) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayAppts = appointments.filter(a => a.date && a.date.startsWith(todayStr));
+        document.getElementById('statTotal').textContent = todayAppts.length;
+        document.getElementById('statCompleted').textContent = todayAppts.filter(a => a.status === 'Completed').length;
+        document.getElementById('statPending').textContent = todayAppts.filter(a => a.status === 'Checked In' || a.status === 'In Progress').length;
+        document.getElementById('statCancelled').textContent = todayAppts.filter(a => a.status === 'Cancelled').length;
+    }
+
+    function renderAppointments() {
+        const filtered = currentFilter === 'all' ? allAppointments : allAppointments.filter(a => a.status === currentFilter);
+        const tbody = document.getElementById('appointmentsBody');
+        if (!filtered.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">📅</div><p>No appointments found</p></td></tr>';
+            return;
+        }
+        tbody.innerHTML = filtered.map(a => {
+            const statusClass = (a.status || '').toLowerCase().replace(/ /g, '-');
+            const canUpdate = a.status !== 'Completed' && a.status !== 'Cancelled';
+            const canCancel = a.status !== 'Cancelled' && a.status !== 'Completed';
+            return `
+                <tr>
+                    <td>${a.id}</td>
+                    <td><strong>${a.patientName || '-'}</strong><br><span style="font-size:11px;color:var(--text-muted)">${a.universityID || ''}</span></td>
+                    <td>${a.userType || '-'}</td>
+                    <td>${a.time || '-'}</td>
+                    <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${a.reason || '-'}</td>
+                    <td><span class="status-badge ${statusClass}">${a.status || '-'}</span></td>
+                    <td>
+                        ${canUpdate ? `<button class="action-btn btn-update" onclick='openModal(${a.id}, "${a.patientName.replace(/"/g, '&quot;')}")'>Update Record</button>` : ''}
+                        ${canCancel ? `<button class="action-btn btn-cancel" onclick="cancelAppt(${a.id})">Cancel</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Load completed records
+    async function loadRecords() {
+        try {
+            const res = await fetch(`${API}/appointments/doctor`, {
+                headers: authHeaders()
+            });
+            const data = await res.json();
+            const completed = data.filter(a => a.status === 'Completed');
+            const tbody = document.getElementById('recordsBody');
+            if (!completed.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="icon">📋</div><p>No completed records yet</p></td></tr>';
+                return;
+            }
+            tbody.innerHTML = completed.map(a => {
+                const hr = a.healthRecord || {};
+                return `
+                    <tr>
+                        <td>${a.id}</td>
+                        <td><strong>${a.patientName || '-'}</strong></td>
+                        <td>${a.date || '-'}</td>
+                        <td>${hr.diagnosis || 'Not recorded'}</td>
+                        <td>${hr.medicalCertificateIssued ? 'Yes' : 'No'}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (err) {
+            document.getElementById('recordsBody').innerHTML = '<tr><td colspan="5" class="empty-state">Could not load records.</td></tr>';
+        }
+    }
+
+    // Modal handlers
+    function openModal(id, patientName) {
+        document.getElementById('modalApptId').value = id;
+        document.getElementById('modalPatientName').textContent = `Patient: ${patientName}`;
+        document.getElementById('temperature').value = '';
+        document.getElementById('bloodPressure').value = '';
+        document.getElementById('weight').value = '';
+        document.getElementById('diagnosis').value = '';
+        document.getElementById('prescription').value = '';
+        document.getElementById('medCert').checked = false;
+        document.getElementById('modalError').className = 'msg error';
+        document.getElementById('modalSuccess').className = 'msg success';
+        document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('show');
+    }
+
+    async function saveRecord() {
+        const id = document.getElementById('modalApptId').value;
+        const temperature = document.getElementById('temperature').value;
+        const bloodPressure = document.getElementById('bloodPressure').value;
+        const weight = document.getElementById('weight').value;
+        const diagnosis = document.getElementById('diagnosis').value.trim();
+        const prescription = document.getElementById('prescription').value.trim();
+        const medicalCertificate = document.getElementById('medCert').checked;
+        const errEl = document.getElementById('modalError');
+        const sucEl = document.getElementById('modalSuccess');
+
+        if (!diagnosis) {
+            errEl.textContent = 'Please enter a diagnosis.';
+            errEl.className = 'msg error show';
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/appointments/update-record/${id}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ temperature, bloodPressure, weight, diagnosis, prescription, medicalCertificate })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sucEl.textContent = 'Health record saved successfully!';
+                sucEl.className = 'msg success show';
+                setTimeout(() => {
+                    closeModal();
+                    loadAppointments();
+                    if (document.getElementById('tabRecords').style.display === 'block') loadRecords();
+                }, 1500);
+            } else {
+                errEl.textContent = data.message || 'Failed to save record.';
+                errEl.className = 'msg error show';
+            }
+        } catch (err) {
+            errEl.textContent = 'Server error. Please try again.';
+            errEl.className = 'msg error show';
+        }
+    }
+
+    async function cancelAppt(id) {
+        if (!confirm('Cancel this appointment?')) return;
+        try {
+            const res = await fetch(`${API}/appointments/cancel/${id}`, {
+                 method: 'DELETE',
+                headers: {'Authorization': 'Bearer ' + token}
+                });
+            if (res.ok) loadAppointments();
+        } catch (err) {
+            alert('Could not cancel appointment.');
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    }
+
+    // Session timeout (30 minutes)
+    const TIMEOUT_MS = (30 * 60 - 60) * 1000;
+    let timeoutTimer, countdownTimer;
+    function startTimeout() {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = setTimeout(showTimeoutWarning, TIMEOUT_MS);
+    }
+    function showTimeoutWarning() {
+        let countdown = 60;
+        document.getElementById('timeoutCount').textContent = countdown;
+        document.getElementById('timeoutOverlay').classList.add('show');
+        countdownTimer = setInterval(() => {
+            countdown--;
+            document.getElementById('timeoutCount').textContent = countdown;
+            if (countdown <= 0) {
+                clearInterval(countdownTimer);
+                logout();
+            }
+        }, 1000);
+    }
+    function resetTimeout() {
+        clearTimeout(timeoutTimer);
+        clearInterval(countdownTimer);
+        document.getElementById('timeoutOverlay').classList.remove('show');
+        localStorage.setItem('lastActivity', Date.now().toString());
+        startTimeout();
+    }
+    ['mousemove','keydown','click','scroll','touchstart'].forEach(e => document.addEventListener(e, resetTimeout, { passive: true }));
+    startTimeout();
+
+    // Initial load
+    loadAppointments();
+</script>
+</body>
+</html>
