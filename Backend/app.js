@@ -32,7 +32,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // for form data support
 
 // Serve static frontend files
-app.use(express.static(path.join(__dirname, '../Frontend')));
+const API = "/api";
 
 // API routes
 app.use('/api/auth', authRoutes);

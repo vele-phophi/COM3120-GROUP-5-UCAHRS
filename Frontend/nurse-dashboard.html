@@ -313,7 +313,7 @@ function authHeaders() {
     };
 }
 
-    const API = 'http://localhost:3000/api';
+    const API = "/api";
     let token = localStorage.getItem('token');
     let user = JSON.parse(localStorage.getItem('user') || '{}');
     let allQueue = [];
