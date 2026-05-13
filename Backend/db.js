@@ -1,29 +1,28 @@
-// ============================================================
-//  UCAHRS - Database Connection (Local XAMPP - Hardcoded)
-//  No environment variables used – permanent fix for dotenvx interference
-// ============================================================
-
 const mysql = require('mysql2');
+require('dotenv').config();
 
 const pool = mysql.createPool({
-    host: '127.0.0.1',
-    port: 3306,
-    user: 'root',
-    password: '',
-    database: 'ucahrs_db',
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
     queueLimit: 0,
-    charset: 'utf8mb4'
+    charset: 'utf8mb4',
+    ssl: {
+        rejectUnauthorized: false   
+    }
 });
 
 const promisePool = pool.promise();
 
-// Test connection on startup
+// Test connection
 (async () => {
     try {
         const connection = await promisePool.getConnection();
-        console.log('✅ Connected to MariaDB database successfully!');
+        console.log('✅ Connected to MySQL database successfully!');
         connection.release();
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
