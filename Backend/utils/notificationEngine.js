@@ -1,9 +1,3 @@
-// ============================================================
-//  NOTIFICATION ENGINE (UNIVEN Clinic)
-//  If NOTIFICATION_MODE=log, only logs to console.
-//  If NOTIFICATION_MODE=email, uses Nodemailer (requires valid SMTP credentials).
-// ============================================================
-
 const NOTIFICATION_MODE = process.env.NOTIFICATION_MODE || 'log';
 
 // Only load nodemailer if we actually need to send emails

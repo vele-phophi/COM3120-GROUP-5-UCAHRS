@@ -1,9 +1,5 @@
-// ============================================================
-//  UCAHRS - Queue Controller
-// ============================================================
 const db = require('../db');
 
-// Helper: Get student's database ID from universityID (student_number)
 async function getStudentIdByUniversityId(universityID) {
     const [rows] = await db.query(
         'SELECT id FROM students WHERE student_number = ?',

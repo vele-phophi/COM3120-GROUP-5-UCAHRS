@@ -1,6 +1,3 @@
-// ============================================================
-//  UCAHRS - Prescription Controller
-// ============================================================
 const db = require('../db');
 
 // Helper to get student's database ID from universityID (student_number)
@@ -15,7 +12,7 @@ async function getStudentIdByUniversityId(universityID) {
 // Doctor issues a prescription
 exports.createPrescription = async (req, res) => {
     const { appointment_id, universityID, medication, instructions } = req.body;
-    const doctor_id = req.user.id; // from JWT (staff.id)
+    const doctor_id = req.user.id; 
 
     if (!appointment_id || !universityID || !medication) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -63,10 +60,10 @@ exports.getMyPrescriptions = async (req, res) => {
     }
 };
 
-// Get prescriptions for a specific student (doctor or admin access)
+// Get prescriptions for a specific student 
 exports.getPrescriptionsByStudent = async (req, res) => {
-    const { studentId } = req.params; // database id, not universityID
-    // Only role 'doctor' or 'admin' can use this endpoint
+    const { studentId } = req.params; 
+    
     if (!['doctor', 'admin'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied' });
     }

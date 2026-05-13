@@ -81,7 +81,7 @@ router.delete('/users/:id', async (req, res) => {
 
 // Login (supports both student and staff)
 router.post('/login', async (req, res) => {
-    const { email, password, userType } = req.body; // userType: 'student' or 'staff'
+    const { email, password, userType } = req.body; 
     if (!email || !password || !userType) {
         return res.status(400).json({ message: 'Email, password, and userType required' });
     }

@@ -4,7 +4,6 @@ const queueController = require('../queue/queueController');
 const router = express.Router();
 
 // Add a student to the queue (after check-in) – nurse or admin
-// Expects body: { appointment_id, universityID }
 router.post('/add', verifyToken, allowRoles('nurse', 'admin'), queueController.addToQueue);
 
 // Get current queue – nurse, doctor, admin

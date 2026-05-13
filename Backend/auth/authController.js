@@ -5,11 +5,9 @@ const db = require('../db');
 // Secret key for JWT - keep this private!
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ============================================================
-// REGISTER: Create a new user account (staff only)
-// ============================================================
+
 exports.register = async (req, res) => {
-    const { email, password, role, full_name, university_id } = req.body; // added university_id
+    const { email, password, role, full_name, university_id } = req.body; 
 
     // Validate required fields
     if (!email || !password || !role) {
@@ -49,9 +47,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// ============================================================
-// LOGIN: Verify credentials and return JWT token
-// ============================================================
+
 exports.login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -60,7 +56,7 @@ exports.login = async (req, res) => {
     }
 
     try {
-        // Select includes university_id
+    
         const [users] = await db.query(
             'SELECT id, email, role, full_name, university_id FROM users WHERE email = ?',
             [email]
@@ -105,9 +101,6 @@ exports.login = async (req, res) => {
     }
 };
 
-// ============================================================
-// MIDDLEWARE: Protect routes - verify JWT token
-// ============================================================
 exports.verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -125,9 +118,6 @@ exports.verifyToken = (req, res, next) => {
     }
 };
 
-// ============================================================
-// MIDDLEWARE: Restrict by role
-// ============================================================
 exports.requireRole = (...roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {
