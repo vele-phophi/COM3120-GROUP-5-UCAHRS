@@ -6,23 +6,22 @@ const ALL_SLOTS = [
     "11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30"
 ];
 
-function isValidDate(date) {
-    return /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date));
-}
-function isValidTime(time) {
-    return ALL_SLOTS.includes(time);
-}
-function isValidUniversityId(id) {
-    return /^[A-Z0-9]{6,12}$/i.test(id);
+function isValidDate(date) { return /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date)); }
+function isValidTime(time) { return ALL_SLOTS.includes(time); }
+function isValidUniversityId(id) { return /^[A-Z0-9]{6,12}$/i.test(id); }
+
+// Helper to get a default doctor ID (first doctor in staff table)
+async function getDefaultDoctorId() {
+    const [rows] = await db.query(`SELECT id FROM staff WHERE role = 'doctor' ORDER BY id LIMIT 1`);
+    if (rows.length === 0) throw new Error("No doctor available");
+    return rows[0].id;
 }
 
-
-// ==================== GET AVAILABLE SLOTS ====================
+// ==================== AVAILABLE SLOTS ====================
 exports.getAvailableSlots = async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({ message: "Date required" });
     if (!isValidDate(date)) return res.status(400).json({ message: "Invalid date format" });
-
     try {
         const [booked] = await db.query(
             `SELECT time FROM appointments WHERE date = ? AND status != 'Cancelled'`,
@@ -43,13 +42,14 @@ exports.getAvailableSlots = async (req, res) => {
 // ==================== BOOK APPOINTMENT ====================
 exports.bookAppointment = async (req, res) => {
     const { patientName, userType, idNumber, date, time, reason, doctor_id } = req.body;
-
+    
+    // Validate inputs
     if (!patientName || !userType || !idNumber || !date || !time || !reason) {
         return res.status(400).json({ message: "All fields required" });
     }
     if (!isValidDate(date)) return res.status(400).json({ message: "Invalid date" });
     if (!isValidTime(time)) return res.status(400).json({ message: "Invalid time slot" });
-    if (!isValidUniversityId(idNumber)) return res.status(400).json({ message: "Invalid university ID format" });
+    if (!isValidUniversityId(idNumber)) return res.status(400).json({ message: "Invalid ID format" });
     if (date < new Date().toISOString().split('T')[0]) {
         return res.status(400).json({ message: "Cannot book appointments in the past" });
     }
@@ -58,59 +58,93 @@ exports.bookAppointment = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // 1. Check if slot is already booked
-        const [existingSlot] = await connection.query(
+        // 1. Check slot availability
+        const [existing] = await connection.query(
             `SELECT id FROM appointments WHERE date = ? AND time = ? AND status != 'Cancelled'`,
             [date, time]
         );
-        if (existingSlot.length > 0) {
-            await connection.rollback();
-            return res.status(409).json({ message: `Slot at ${time} is already booked.` });
-        }
-
-        // 2. Find or create patient
-        let patientId;
-        const [existing] = await connection.query(
-            `SELECT id FROM patients WHERE university_id = ?`, [idNumber]
-        );
         if (existing.length > 0) {
-            patientId = existing[0].id;
-            await connection.query(
-                `UPDATE patients SET full_name = ?, user_type = ? WHERE id = ?`,
-                [patientName, userType, patientId]
-            );
-        } else {
-            const [result] = await connection.query(
-                `INSERT INTO patients (full_name, university_id, user_type, email) VALUES (?, ?, ?, ?)`,
-                [patientName, idNumber, userType, `${idNumber}@mvula.univen.ac.za`]
-            );
-            patientId = result.insertId;
+            await connection.rollback();
+            return res.status(409).json({ message: `Slot at ${time} on ${date} is already booked.` });
         }
 
-        // 3. Insert appointment
+        // 2. Find or create student (patient)
+        let studentId;
+        if (userType === 'Student') {
+            let [rows] = await connection.query(
+                `SELECT id FROM students WHERE student_number = ?`,
+                [idNumber]
+            );
+            if (rows.length > 0) {
+                studentId = rows[0].id;
+                // Optionally update name if changed
+                await connection.query(
+                    `UPDATE students SET full_name = ? WHERE id = ?`,
+                    [patientName, studentId]
+                );
+            } else {
+                const [result] = await connection.query(
+                    `INSERT INTO students (full_name, student_number, student_email, password) VALUES (?, ?, ?, ?)`,
+                    [patientName, idNumber, `${idNumber}@univen.ac.za`, ''] // empty password; they must register separately
+                );
+                studentId = result.insertId;
+            }
+        } else { // Staff as patient – store in staff table with role 'patient'
+            let [rows] = await connection.query(
+                `SELECT id FROM staff WHERE staff_id = ?`,
+                [idNumber]
+            );
+            if (rows.length > 0) {
+                studentId = rows[0].id;
+                await connection.query(
+                    `UPDATE staff SET full_name = ? WHERE id = ?`,
+                    [patientName, studentId]
+                );
+            } else {
+                const [result] = await connection.query(
+                    `INSERT INTO staff (full_name, staff_id, role, staff_email, password) VALUES (?, ?, ?, ?, ?)`,
+                    [patientName, idNumber, 'patient', `${idNumber}@univen.ac.za`, '']
+                );
+                studentId = result.insertId;
+            }
+        }
+
+        // 3. Determine doctor ID – use provided one, or assign a default
+        let finalDoctorId = doctor_id;
+        if (!finalDoctorId) {
+            finalDoctorId = await getDefaultDoctorId();
+        }
+
+        // 4. Create appointment
         const [result] = await connection.query(
-            `INSERT INTO appointments (patient_id, doctor_id, date, time, reason, status) VALUES (?, ?, ?, ?, ?, 'Pending')`,
-            [patientId, doctor_id || null, date, time, reason]
+            `INSERT INTO appointments (student_id, doctor_id, date, time, reason, status)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [studentId, finalDoctorId, date, time, reason, 'Pending']
         );
         const appointmentId = result.insertId;
 
         await connection.commit();
 
-        // 4. Send notification
-        try {
-            sendNotification(idNumber, 'BOOKING_CONFIRMED', { patientName, date, time });
-            await db.query(
-                `INSERT INTO notifications (recipient_email, type, message) VALUES (?, ?, ?)`,
-                [`${idNumber}@mvula.univen.ac.za`, 'BOOKING_CONFIRMED',
-                 `Confirmed: ${patientName} on ${date} at ${time}. Venue: UNIVEN Main Clinic.`]
-            );
-        } catch (notifErr) {
-            console.warn('Notification failed (non-critical):', notifErr.message);
-        }
+        // 5. Send notification (outside transaction)
+        sendNotification(idNumber, 'BOOKING_CONFIRMED', { patientName, date, time });
+        await db.query(
+            `INSERT INTO notifications (recipient_email, type, message) VALUES (?, ?, ?)`,
+            [`${idNumber}@univen.ac.za`, 'BOOKING_CONFIRMED',
+             `Confirmed: ${patientName} on ${date} at ${time}. Venue: UNIVEN Main Clinic.`]
+        );
 
         res.status(201).json({
             message: "Appointment booked successfully! Status: Pending.",
-            data: { id: appointmentId, patientName, userType, universityID: idNumber, date, time, reason, status: 'Pending' }
+            data: {
+                id: appointmentId,
+                patientName,
+                userType,
+                universityID: idNumber,
+                date,
+                time,
+                reason,
+                status: 'Pending'
+            }
         });
     } catch (err) {
         await connection.rollback();
@@ -120,76 +154,22 @@ exports.bookAppointment = async (req, res) => {
         connection.release();
     }
 };
-// ==================== UPDATE HEALTH RECORD ====================
-exports.updateHealthRecord = async (req, res) => {
-    const appointmentId = req.params.id;
-    const { temperature, bloodPressure, weight, diagnosis, prescription, medicalCertificate } = req.body;
-    const doctor_id = req.user.id;
 
-    if (!diagnosis) return res.status(400).json({ message: "Diagnosis required" });
-
-    try {
-        // 1. Get appointment with patient_id
-        const [appt] = await db.query(
-            `SELECT a.id, a.patient_id, p.university_id 
-             FROM appointments a
-             JOIN patients p ON a.patient_id = p.id
-             WHERE a.id = ?`,
-            [appointmentId]
-        );
-        if (appt.length === 0) return res.status(404).json({ message: "Appointment not found" });
-
-        const patientId = appt[0].patient_id;
-
-        // 2. Save/update health record
-        const [existing] = await db.query(
-            `SELECT id FROM health_records WHERE appointment_id = ?`, [appointmentId]
-        );
-        if (existing.length > 0) {
-            await db.query(`
-                UPDATE health_records SET temperature = ?, blood_pressure = ?, weight = ?,
-                    diagnosis = ?, prescription = ?, medical_certificate_issued = ?
-                WHERE appointment_id = ?
-            `, [temperature||null, bloodPressure||null, weight||null, diagnosis, prescription||null, medicalCertificate?1:0, appointmentId]);
-        } else {
-            await db.query(`
-                INSERT INTO health_records (appointment_id, temperature, blood_pressure, weight, diagnosis, prescription, medical_certificate_issued)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [appointmentId, temperature||null, bloodPressure||null, weight||null, diagnosis, prescription||null, medicalCertificate?1:0]);
-        }
-
-        // 3. Save prescription using patient_id directly
-        if (prescription) {
-            await db.query(
-                `INSERT INTO prescriptions (appointment_id, doctor_id, student_id, medication, instructions)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [appointmentId, doctor_id, patientId, prescription, diagnosis]
-            );
-        }
-
-        // 4. Mark appointment as completed
-        await db.query(`UPDATE appointments SET status = 'Completed' WHERE id = ?`, [appointmentId]);
-        res.json({ message: "Health record saved. Appointment marked as Completed." });
-    } catch (err) {
-        console.error('updateHealthRecord error:', err);
-        res.status(500).json({ message: "Server error" });
-    }
-};
-
-// ==================== GET MY APPOINTMENTS ====================
+// ==================== GET MY APPOINTMENTS (Student) ====================
 exports.getMyAppointments = async (req, res) => {
     const universityID = req.user.universityID;
-    if (!universityID) return res.status(401).json({ message: "User ID not found in token" });
+    if (!universityID) {
+        return res.status(401).json({ message: "No university ID in token" });
+    }
     try {
-        const query = `
+        const [rows] = await db.query(`
             SELECT a.*, s.full_name AS doctor_name
             FROM appointments a
-            LEFT JOIN staff s ON a.doctor_id = s.id
-            JOIN patients p ON a.patient_id = p.id
-            WHERE p.university_id = ?
+            JOIN staff s ON a.doctor_id = s.id
+            JOIN students stu ON a.student_id = stu.id
+            WHERE stu.student_number = ?
             ORDER BY a.date DESC, a.time DESC
-        `;
-        const [rows] = await db.query(query, [universityID]);
+        `, [universityID]);
         res.json(rows);
     } catch (err) {
         console.error('getMyAppointments error:', err);
@@ -200,26 +180,30 @@ exports.getMyAppointments = async (req, res) => {
 // ==================== CANCEL APPOINTMENT ====================
 exports.cancelAppointment = async (req, res) => {
     const appointmentId = req.params.id;
-    const isAdmin = req.user.role === 'admin';
     const universityID = req.user.universityID;
+    const isAdmin = req.user.role === 'admin';
 
     try {
-        const [appt] = await db.query(
-            `SELECT id, status, patient_id FROM appointments WHERE id = ?`,
-            [appointmentId]
-        );
-        if (appt.length === 0) return res.status(404).json({ message: "Appointment not found" });
+        const [appt] = await db.query(`
+            SELECT a.id, a.status,
+                   CASE WHEN stu.id IS NOT NULL AND stu.student_number = ? THEN 1 ELSE 0 END AS is_owner
+            FROM appointments a
+            JOIN students stu ON a.student_id = stu.id
+            WHERE a.id = ?
+        `, [universityID, appointmentId]);
 
-        let isOwner = false;
-        const [pat] = await db.query(
-            `SELECT id FROM patients WHERE university_id = ? AND id = ?`,
-            [universityID, appt[0].patient_id]
-        );
-        isOwner = pat.length > 0;
-
-        if (!isAdmin && !isOwner) return res.status(403).json({ message: "Not authorised to cancel this appointment" });
-        if (appt[0].status === 'Cancelled') return res.status(400).json({ message: "Appointment already cancelled" });
-        if (appt[0].status === 'Completed') return res.status(400).json({ message: "Cannot cancel a completed appointment" });
+        if (appt.length === 0) {
+            return res.status(404).json({ message: "Appointment not found" });
+        }
+        if (!isAdmin && !appt[0].is_owner) {
+            return res.status(403).json({ message: "Not authorised to cancel this appointment" });
+        }
+        if (appt[0].status === 'Completed') {
+            return res.status(400).json({ message: "Cannot cancel a completed appointment" });
+        }
+        if (appt[0].status === 'Cancelled') {
+            return res.status(400).json({ message: "Appointment already cancelled" });
+        }
 
         await db.query(`UPDATE appointments SET status = 'Cancelled' WHERE id = ?`, [appointmentId]);
         res.json({ message: "Appointment cancelled successfully" });
@@ -229,21 +213,79 @@ exports.cancelAppointment = async (req, res) => {
     }
 };
 
-// ==================== GET DOCTOR APPOINTMENTS ====================
-exports.getDoctorAppointments = async (req, res) => {
-    const doctorId = req.user.id;
+// ==================== GET ALL APPOINTMENTS (Admin) ====================
+exports.getAllAppointments = async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT a.*, COALESCE(p.full_name, 'Staff Patient') AS patientName,
-                   CASE WHEN p.id IS NOT NULL THEN 'Student' ELSE 'Staff' END AS userType
+            SELECT a.*,
+                   stu.full_name AS patientName,
+                   stu.student_number AS universityID,
+                   'Student' AS userType,
+                   doc.full_name AS doctorName
             FROM appointments a
-            LEFT JOIN patients p ON a.patient_id = p.id
-            WHERE a.doctor_id = ? AND a.status != 'Cancelled'
-            ORDER BY a.date, a.time
-        `, [doctorId]);
-        res.json(rows);
+            JOIN students stu ON a.student_id = stu.id
+            JOIN staff doc ON a.doctor_id = doc.id
+            ORDER BY a.date DESC, a.time DESC
+        `);
+        // Format dates
+        const formatted = rows.map(row => ({
+            ...row,
+            date: row.date ? row.date.toISOString().split('T')[0] : null,
+            time: row.time ? row.time.substring(0,5) : null
+        }));
+        res.json(formatted);
     } catch (err) {
-        console.error('getDoctorAppointments error:', err);
+        console.error('getAllAppointments error:', err);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== UPDATE HEALTH RECORD (Doctor) ====================
+exports.updateHealthRecord = async (req, res) => {
+    const appointmentId = req.params.id;
+    const { temperature, bloodPressure, weight, diagnosis, prescription, medicalCertificate } = req.body;
+
+    if (!diagnosis) return res.status(400).json({ message: "Diagnosis required" });
+
+    try {
+        const [appt] = await db.query(`SELECT id FROM appointments WHERE id = ?`, [appointmentId]);
+        if (appt.length === 0) return res.status(404).json({ message: "Appointment not found" });
+
+        const [existing] = await db.query(`SELECT id FROM health_records WHERE appointment_id = ?`, [appointmentId]);
+        if (existing.length > 0) {
+            await db.query(`
+                UPDATE health_records SET
+                    temperature = ?, blood_pressure = ?, weight = ?,
+                    diagnosis = ?, prescription = ?, medical_certificate_issued = ?
+                WHERE appointment_id = ?
+            `, [temperature || null, bloodPressure || null, weight || null,
+               diagnosis, prescription || null, medicalCertificate ? 1 : 0, appointmentId]);
+        } else {
+            await db.query(`
+                INSERT INTO health_records
+                (appointment_id, temperature, blood_pressure, weight, diagnosis, prescription, medical_certificate_issued)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [appointmentId, temperature || null, bloodPressure || null,
+               weight || null, diagnosis, prescription || null, medicalCertificate ? 1 : 0]);
+        }
+
+        // Mark appointment as Completed
+        await db.query(`UPDATE appointments SET status = 'Completed' WHERE id = ?`, [appointmentId]);
+
+        // Notify patient
+        const [patientInfo] = await db.query(`
+            SELECT stu.student_number AS uni_id
+            FROM appointments a
+            JOIN students stu ON a.student_id = stu.id
+            WHERE a.id = ?
+        `, [appointmentId]);
+        if (patientInfo.length > 0 && patientInfo[0].uni_id) {
+            sendNotification(patientInfo[0].uni_id, 'RECORD_UPDATED', { date: new Date().toLocaleDateString() });
+        }
+
+        res.json({ message: "Health record saved. Appointment marked as Completed." });
+    } catch (err) {
+        console.error('updateHealthRecord error:', err);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -253,57 +295,15 @@ exports.getTodaysAppointments = async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     try {
         const [rows] = await db.query(`
-            SELECT a.*, COALESCE(p.full_name, 'Staff Patient') AS patient_name,
-                   CASE WHEN p.id IS NOT NULL THEN 'Student' ELSE 'Staff' END AS patient_type
+            SELECT a.*, stu.full_name AS patient_name, 'Student' AS patient_type
             FROM appointments a
-            LEFT JOIN patients p ON a.patient_id = p.id
+            JOIN students stu ON a.student_id = stu.id
             WHERE a.date = ? AND a.status NOT IN ('Cancelled','Completed')
             ORDER BY a.time
         `, [today]);
         res.json(rows);
     } catch (err) {
         console.error('getTodaysAppointments error:', err);
-        res.status(500).json({ message: "Server error" });
-    }
-};
-
-// ==================== GET ALL APPOINTMENTS (Admin) ====================
-exports.getAllAppointments = async (req, res) => {
-    const { date, doctor_id, status } = req.query;
-    let query = `
-        SELECT a.*, COALESCE(p.full_name, 'Staff Patient') AS patientName,
-               doc.full_name AS doctor_name
-        FROM appointments a
-        LEFT JOIN patients p ON a.patient_id = p.id
-        LEFT JOIN staff doc ON a.doctor_id = doc.id
-        WHERE 1=1
-    `;
-    const params = [];
-    if (date) { query += ' AND a.date = ?'; params.push(date); }
-    if (doctor_id) { query += ' AND a.doctor_id = ?'; params.push(doctor_id); }
-    if (status) { query += ' AND a.status = ?'; params.push(status); }
-    query += ' ORDER BY a.date DESC, a.time DESC';
-
-    try {
-        const [rows] = await db.query(query, params);
-        res.json(rows);
-    } catch (err) {
-        console.error('getAllAppointments error:', err);
-        res.status(500).json({ message: "Server error" });
-    }
-};
-
-// ==================== UPDATE APPOINTMENT STATUS ====================
-exports.updateAppointmentStatus = async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-    const validStatus = ['Pending','Confirmed','Checked In','In Progress','Completed','Cancelled'];
-    if (!validStatus.includes(status)) return res.status(400).json({ message: "Invalid status" });
-    try {
-        await db.query(`UPDATE appointments SET status = ? WHERE id = ?`, [status, id]);
-        res.json({ message: "Status updated" });
-    } catch (err) {
-        console.error('updateAppointmentStatus error:', err);
         res.status(500).json({ message: "Server error" });
     }
 };
