@@ -1,6 +1,7 @@
 const path = require('path');
 process.env.DOTENV_CONFIG_PATH = './Backend/.env';
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ 
+    path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
@@ -32,7 +33,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // for form data support
 
 // Serve static frontend files
-const API = "/api";
+app.use(express.static(path.join(__dirname, '../Frontend')));
+
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "../Frontend/index.html"));
+});
 
 // API routes
 app.use('/api/auth', authRoutes);
