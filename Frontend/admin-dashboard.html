@@ -864,7 +864,9 @@
     }
 
     /* ===== INIT ===== */
+    document.addEventListener('DOMContentLoaded', () => {
     loadAll().then(() => startAutoRefresh());
+});
 </script>
 </body>
 </html>
