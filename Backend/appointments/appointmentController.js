@@ -290,6 +290,46 @@ exports.updateHealthRecord = async (req, res) => {
     }
 };
 
+// ==================== GET DOCTOR'S APPOINTMENTS ====================
+exports.getDoctorAppointments = async (req, res) => {
+    const doctorId = req.user.id;
+    try {
+        const [rows] = await db.query(`
+            SELECT a.*, stu.full_name AS patient_name, stu.student_number AS university_id
+            FROM appointments a
+            JOIN students stu ON a.student_id = stu.id
+            WHERE a.doctor_id = ?
+            ORDER BY a.date DESC, a.time DESC
+        `, [doctorId]);
+        res.json(rows);
+    } catch (err) {
+        console.error('getDoctorAppointments error:', err);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== UPDATE APPOINTMENT STATUS (Admin/Doctor) ====================
+exports.updateAppointmentStatus = async (req, res) => {
+    const appointmentId = req.params.id;
+    const { status } = req.body;
+    const validStatuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    try {
+        const [appt] = await db.query(`SELECT id FROM appointments WHERE id = ?`, [appointmentId]);
+        if (appt.length === 0) return res.status(404).json({ message: "Appointment not found" });
+
+        await db.query(`UPDATE appointments SET status = ? WHERE id = ?`, [status, appointmentId]);
+        res.json({ message: `Appointment status updated to '${status}'` });
+    } catch (err) {
+        console.error('updateAppointmentStatus error:', err);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 // ==================== GET TODAY'S APPOINTMENTS (Nurse) ====================
 exports.getTodaysAppointments = async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
