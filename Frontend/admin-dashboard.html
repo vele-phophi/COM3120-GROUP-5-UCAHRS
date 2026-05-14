@@ -31,7 +31,6 @@
             --shadow: 0 2px 16px rgba(0,0,0,0.3);
         }
 
-        /* ===== RESET ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: "DM Sans", sans-serif;
@@ -101,10 +100,6 @@
             animation: fadeSlideUp 0.4s ease both; transition: transform 0.2s, box-shadow 0.2s;
         }
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .stat-card:nth-child(1) { animation-delay: 0.05s; }
-        .stat-card:nth-child(2) { animation-delay: 0.10s; }
-        .stat-card:nth-child(3) { animation-delay: 0.15s; }
-        .stat-card:nth-child(4) { animation-delay: 0.20s; }
         .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
         .stat-info strong { display: block; font-size: 24px; color: var(--text-dark); font-weight: 600; }
         .stat-info span { font-size: 12px; color: var(--text-muted); }
@@ -243,7 +238,7 @@
 <!-- ===== SIDEBAR ===== -->
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <img src="data:image/jpeg;base64,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" alt="Logo" class="sidebar-logo">
+        <img src="data:image/jpeg;base64,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" alt="Logo" class="sidebar-logo">
         <div class="sidebar-title">UCAHRS <span>Admin Panel</span></div>
     </div>
     <div class="admin-badge">&#9733; Administrator</div>
@@ -448,7 +443,7 @@
                 <input class="filter-search" type="text" id="apptSearch2" placeholder="🔍 Search patient..." oninput="searchAppts2()">
             </div>
             <div style="overflow-x:auto;">
-                <table>
+                <td>
                     <thead>
                         <tr><th>#</th><th>Patient</th><th>Type</th><th>Date</th><th>Time</th><th>Reason</th><th>Status</th><th>Action</th></tr>
                     </thead>
@@ -463,16 +458,17 @@
 </div><!-- /main -->
 
 <script>
-    
     const token = localStorage.getItem('token');
-function authHeaders() {
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-    };
-}
-    /* ===== SETUP ===== */
-   const API = "https://com3120-group-5-ucahrs.onrender.com/api";
+    if (!token) window.location.href = 'index.html';
+
+    function authHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        };
+    }
+
+    const API = "https://com3120-group-5-ucahrs.onrender.com/api";
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     document.getElementById('adminName').textContent = user.full_name || 'Admin';
     document.getElementById('headerDate').textContent =
@@ -481,6 +477,7 @@ function authHeaders() {
     let allAppts = [];
     let currentFilter = 'all';
     let barChartInst = null, doughnutInst = null;
+    let refreshInterval = null;
 
     /* ===== DARK MODE ===== */
     function toggleDark() {
@@ -491,7 +488,6 @@ function authHeaders() {
         localStorage.setItem('theme', isDark ? 'light' : 'dark');
         setTimeout(rebuildCharts, 50);
     }
-    // Restore saved theme
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
         document.getElementById('darkBtn').textContent = '☀️';
@@ -511,7 +507,6 @@ function authHeaders() {
     function showSection(name, btn) {
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         if (btn) btn.classList.add('active');
-        // show/hide
         document.getElementById('section-overview').style.display = name === 'overview' ? '' : 'none';
         document.getElementById('overview-appts').style.display = name === 'overview' ? '' : 'none';
         document.getElementById('section-staff').style.display = name === 'staff' ? '' : 'none';
@@ -528,7 +523,7 @@ function authHeaders() {
         const tbody = document.getElementById('usersBody');
         const tbody2 = document.getElementById('usersBody2');
         try {
-            const res = await fetch(API + '/auth/users');
+            const res = await fetch(API + '/auth/users', { headers: authHeaders() });
             if (!res.ok) throw new Error();
             const data = await res.json();
             document.getElementById('statUsers').textContent = data.length;
@@ -542,7 +537,7 @@ function authHeaders() {
             tbody.innerHTML = rows || '<tr><td colspan="4" class="empty-state">No staff found.</td></tr>';
             tbody2.innerHTML = rows || '<tr><td colspan="4" class="empty-state">No staff found.</td></tr>';
         } catch(e) {
-            const msg = '<tr><td colspan="4" class="empty-state">Connect a /api/auth/users endpoint to manage staff.</td></tr>';
+            const msg = '<td><td colspan="4" class="empty-state">Could not load staff. Ensure /api/auth/users endpoint exists.</td></tr>';
             tbody.innerHTML = msg; tbody2.innerHTML = msg;
             document.getElementById('statUsers').textContent = '–';
         }
@@ -550,26 +545,23 @@ function authHeaders() {
 
     async function loadAppointments() {
         try {
-            const res = await fetch(API + '/appointments/all', {
-                headers: { 
-                'Authorization': 'Bearer ' + token  
-            }
-            });
+            const res = await fetch(API + '/appointments/all', { headers: authHeaders() });
+            if (!res.ok) throw new Error();
             const data = await res.json();
             allAppts = data;
             updateStats(data);
             renderAppointments(data);
             renderCharts(data);
         } catch(e) {
+            console.warn('Failed to load appointments', e);
             const msg = '<tr><td colspan="8" class="empty-state">Could not load appointments. Is the server running?</td></tr>';
             document.getElementById('apptBody').innerHTML = msg;
             document.getElementById('apptBody2').innerHTML = msg;
-            // Render demo charts so page looks good
             renderCharts(getDemoData());
         }
     }
 
-    /* ===== DEMO DATA for charts if API is offline ===== */
+    /* ===== DEMO DATA (fallback) ===== */
     function getDemoData() {
         const today = new Date();
         const statuses = ['Completed','Checked In','In Progress','Cancelled','Completed','Completed','Checked In'];
@@ -664,7 +656,6 @@ function authHeaders() {
                 }
             }
         });
-        // Legend
         const legendBox = document.getElementById('legendBox');
         legendBox.innerHTML = statuses.map((s,i) => `
             <div style="display:flex;align-items:center;gap:5px;">
@@ -697,14 +688,13 @@ function authHeaders() {
                     <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.reason||''}">${a.reason||'–'}</td>
                     <td><span class="status-badge ${sc}">${a.status||'–'}</span></td>
                     <td>${a.status !== 'Cancelled' ? `<button class="action-btn btn-delete" onclick="cancelAppt(${a.id})">Cancel</button>` : '–'}</td>
-                </tr>`;
+                </table>`;
             }).join('');
         if (tbodyId) { document.getElementById(tbodyId).innerHTML = rows; return; }
         document.getElementById('apptBody').innerHTML = rows;
         document.getElementById('apptBody2').innerHTML = rows;
     }
 
-    /* ===== FILTER ===== */
     function filterAppts(status, btn) {
         currentFilter = status;
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -765,7 +755,8 @@ function authHeaders() {
         }
         try {
             const res = await fetch(API + '/auth/register/staff', {
-                method: 'POST', headers: authHeaders(),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ full_name, staff_email: email, role, password, staff_id: 'STAFF-' + Date.now() })
             });
             const data = await res.json();
@@ -788,7 +779,7 @@ function authHeaders() {
     async function deleteUser(id) {
         if (!confirm('Remove this staff member?')) return;
         try {
-            await fetch(API + '/auth/users/' + id, { method: 'DELETE' });
+            await fetch(API + '/auth/users/' + id, { method: 'DELETE', headers: authHeaders() });
             loadUsers();
         } catch(e) { alert('Could not remove user.'); }
     }
@@ -797,7 +788,7 @@ function authHeaders() {
     async function cancelAppt(id) {
         if (!confirm('Cancel this appointment?')) return;
         try {
-            const res = await fetch(API + '/appointments/cancel/' + id, { method: 'DELETE' });
+            const res = await fetch(API + '/appointments/cancel/' + id, { method: 'DELETE', headers: authHeaders() });
             if (res.ok) loadAppointments();
         } catch(e) { alert('Could not cancel.'); }
     }
@@ -807,7 +798,6 @@ function authHeaders() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-        // Header
         doc.setFillColor(15, 32, 64);
         doc.rect(0, 0, 297, 22, 'F');
         doc.setTextColor(255, 255, 255);
@@ -818,7 +808,6 @@ function authHeaders() {
         doc.setFontSize(9);
         doc.text('Generated: ' + new Date().toLocaleString('en-ZA'), 220, 14);
 
-        // Stats row
         doc.setTextColor(30, 30, 60);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
@@ -828,7 +817,6 @@ function authHeaders() {
         const inprog = allAppts.filter(a => a.status === 'In Progress').length;
         doc.text(`Total: ${total}   Completed: ${completed}   Cancelled: ${cancelled}   In Progress: ${inprog}`, 14, 32);
 
-        // Table headers
         const headers = ['#', 'Patient', 'Type', 'Date', 'Time', 'Reason', 'Status'];
         const colW = [12, 50, 28, 28, 22, 60, 28];
         let y = 40;
@@ -840,7 +828,6 @@ function authHeaders() {
         let x = 14;
         headers.forEach((h, i) => { doc.text(h, x, y); x += colW[i]; });
 
-        // Table rows
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(30, 30, 60);
@@ -854,11 +841,9 @@ function authHeaders() {
             vals.forEach((v, i) => { doc.text(String(v), x, y); x += colW[i]; });
         });
 
-        // Footer
         doc.setTextColor(140, 140, 160);
         doc.setFontSize(7);
         doc.text('UNICAHRS – University of Venda Clinic Appointment & Health Records System', 14, 200);
-
         doc.save('UCAHRS-Appointments-' + new Date().toISOString().slice(0,10) + '.pdf');
     }
 
@@ -869,8 +854,17 @@ function authHeaders() {
         window.location.href = 'index.html';
     }
 
+    /* ===== AUTO-REFRESH (real‑time stats) ===== */
+    function startAutoRefresh() {
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => {
+            loadAppointments().catch(console.warn);
+            loadUsers().catch(console.warn);
+        }, 30000); // refresh every 30 seconds
+    }
+
     /* ===== INIT ===== */
-    loadAll();
+    loadAll().then(() => startAutoRefresh());
 </script>
 </body>
 </html>
