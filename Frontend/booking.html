@@ -6,6 +6,7 @@
     <title>UCAHRS – Book Appointment</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* (your existing styles – unchanged) */
         :root {
             --blue: #1a3c6e; --blue-light: #2a5ca8; --red: #c0392b;
             --gold: #b8962e; --gold-light: #d4af5a; --white: #ffffff;
@@ -94,16 +95,6 @@
             <div class="form-group"><label>Student / Staff ID</label><input type="text" id="idNumber" placeholder="e.g. 21012345"></div>
             <div class="form-group"><label>Date</label><input type="date" id="apptDate" onchange="loadSlots()"></div>
         </div>
-        <div class="form-row">
-    <div class="form-group">
-        <label>Select Doctor</label>
-        <select id="doctorSelect">
-            <option value="">Loading doctors...</option>
-        </select>
-    </div>
-    <div class="form-group">
-    </div>
-</div>
         <div class="form-group"><label>Reason</label><textarea id="reason" rows="3" placeholder="Describe your symptoms..."></textarea></div>
         <div class="form-group"><label>Time Slot</label><div class="slots-grid" id="slotsGrid"><div class="slot">Select a date</div></div></div>
         <button class="submit-btn" onclick="handleBooking()">Book Appointment</button>
@@ -113,7 +104,6 @@
 <div class="success-overlay" id="successOverlay"><div class="success-card"><div style="font-size:40px;">✅</div><h2>Booked!</h2><p id="successMsgText"></p><button class="btn-new" onclick="resetForm()">Book Another</button></div></div>
 
 <script>
-    
     const API = "https://com3120-group-5-ucahrs.onrender.com/api";
     let selectedTime = '';
 
@@ -126,26 +116,6 @@
     if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
     document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
-
-    async function loadDoctors() {
-    try {
-        const res = await fetch(API + '/appointments/doctors', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-        });
-        const doctors = await res.json();
-        const select = document.getElementById('doctorSelect');
-        doctors.forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d.id;
-            opt.textContent = d.full_name;
-            select.appendChild(opt);
-        });
-    } catch (err) {
-        console.error('Could not load doctors');
-    }
-}
-document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
-loadDoctors(); 
 
     async function loadSlots() {
         const date = document.getElementById('apptDate').value;
@@ -162,7 +132,13 @@ loadDoctors();
                 const div = document.createElement('div');
                 div.className = 'slot' + (slot.status === 'Busy' ? ' busy' : '');
                 div.textContent = slot.status === 'Busy' ? slot.time + ' Busy' : slot.time;
-                if (slot.status !== 'Busy') div.onclick = () => { document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected')); div.classList.add('selected'); selectedTime = slot.time; };
+                if (slot.status !== 'Busy') {
+                    div.onclick = () => {
+                        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+                        div.classList.add('selected');
+                        selectedTime = slot.time;
+                    };
+                }
                 grid.appendChild(div);
             });
         } catch (err) {
@@ -177,7 +153,6 @@ loadDoctors();
         setTimeout(() => el.classList.remove('show'), 3000);
     }
 
-
     async function handleBooking() {
         const patientName = document.getElementById('patientName').value.trim();
         const userType = document.getElementById('userType').value;
@@ -185,24 +160,31 @@ loadDoctors();
         const date = document.getElementById('apptDate').value;
         const reason = document.getElementById('reason').value.trim();
         const time = selectedTime;
-        const doctor_id = document.getElementById('doctorSelect').value;
-        if (!patientName || !userType || !idNumber || !date || !time || !reason || !doctor_id) return showError('Please fill all fields including selecting a doctor.');
+        if (!patientName || !userType || !idNumber || !date || !time || !reason) return showError('Please fill all fields.');
         const btn = event.target;
         btn.textContent = 'Booking...';
         try {
+            const token = localStorage.getItem('token');
             const res = await fetch(API + '/appointments/book', {
-                method: 'POST', headers: { 'Content-Type': 'application/json',
-                    'Authorization': 'Bearer '+ localStorage.getItem('token')
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                 },
-                body: JSON.stringify({ patientName, userType, idNumber, date, time, reason, doctor_id })
+                body: JSON.stringify({ patientName, userType, idNumber, date, time, reason })
             });
             const data = await res.json();
             if (res.ok) {
                 document.getElementById('successMsgText').innerHTML = `Name: ${patientName}<br>Date: ${date}<br>Time: ${time}`;
                 document.getElementById('successOverlay').classList.add('show');
-            } else showError(data.message || 'Booking failed');
-        } catch (err) { showError('Server error. Is backend running?'); }
-        finally { btn.textContent = 'Book Appointment'; }
+            } else {
+                showError(data.message || 'Booking failed');
+            }
+        } catch (err) {
+            showError('Server error. Is backend running?');
+        } finally {
+            btn.textContent = 'Book Appointment';
+        }
     }
 
     function resetForm() {
@@ -215,7 +197,11 @@ loadDoctors();
         document.getElementById('slotsGrid').innerHTML = '<div class="slot">Select a date</div>';
         selectedTime = '';
     }
-    
+
+    // Ensure user is logged in
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'index.html';
+    }
 </script>
 </body>
 </html>
