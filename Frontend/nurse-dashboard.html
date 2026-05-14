@@ -443,11 +443,11 @@ function authHeaders() {
                 <tr>
                     <td>${idx+1}</td>
                     <td><strong>${a.student_name || 'Student'}</strong></td>
-                    <td>${a.appointment_time || '—'}</td>
+                    <td>${a.time ? a.time.substring(0,5) : '—'}</td>
                     <td>${a.doctor_name || 'Doctor'}</td>
                     <td>${a.reason || '—'}</td>
                     <td><span class="badge badge-${a.status}">${a.status}</span></td>
-                    <td>${a.status === 'confirmed' ? `<button class="action-btn btn-checkin" onclick="checkInPatient(${a.id})">✓ Check In</button>` : '—'}</td>
+                    <td>${(a.status === 'Pending' || a.status === 'confirmed') ? `<button class="action-btn btn-checkin" onclick="checkInPatient(${a.id})">✓ Check In</button>` : '—'}</td>
                 </tr>
             `).join('');
         } catch (err) {

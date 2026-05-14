@@ -158,14 +158,12 @@ exports.bookAppointment = async (req, res) => {
 // ==================== GET MY APPOINTMENTS (Student) ====================
 exports.getMyAppointments = async (req, res) => {
     const universityID = req.user.universityID;
-    if (!universityID) {
-        return res.status(401).json({ message: "No university ID in token" });
-    }
+    if (!universityID) return res.status(401).json({ message: "User ID not found in token" });
     try {
         const [rows] = await db.query(`
             SELECT a.*, s.full_name AS doctor_name
             FROM appointments a
-            JOIN staff s ON a.doctor_id = s.id
+            LEFT JOIN staff s ON a.doctor_id = s.id
             JOIN students stu ON a.student_id = stu.id
             WHERE stu.student_number = ?
             ORDER BY a.date DESC, a.time DESC
@@ -215,25 +213,24 @@ exports.cancelAppointment = async (req, res) => {
 
 // ==================== GET ALL APPOINTMENTS (Admin) ====================
 exports.getAllAppointments = async (req, res) => {
+    const { date, doctor_id, status } = req.query;
+    let query = `
+        SELECT a.*, stu.full_name AS patientName,
+               doc.full_name AS doctor_name
+        FROM appointments a
+        JOIN students stu ON a.student_id = stu.id
+        LEFT JOIN staff doc ON a.doctor_id = doc.id
+        WHERE 1=1
+    `;
+    const params = [];
+    if (date) { query += ' AND a.date = ?'; params.push(date); }
+    if (doctor_id) { query += ' AND a.doctor_id = ?'; params.push(doctor_id); }
+    if (status) { query += ' AND a.status = ?'; params.push(status); }
+    query += ' ORDER BY a.date DESC, a.time DESC';
+
     try {
-        const [rows] = await db.query(`
-            SELECT a.*,
-                   stu.full_name AS patientName,
-                   stu.student_number AS universityID,
-                   'Student' AS userType,
-                   doc.full_name AS doctorName
-            FROM appointments a
-            JOIN students stu ON a.student_id = stu.id
-            JOIN staff doc ON a.doctor_id = doc.id
-            ORDER BY a.date DESC, a.time DESC
-        `);
-        // Format dates
-        const formatted = rows.map(row => ({
-            ...row,
-            date: row.date ? row.date.toISOString().split('T')[0] : null,
-            time: row.time ? row.time.substring(0,5) : null
-        }));
-        res.json(formatted);
+        const [rows] = await db.query(query, params);
+        res.json(rows);
     } catch (err) {
         console.error('getAllAppointments error:', err);
         res.status(500).json({ message: "Server error" });
@@ -295,11 +292,12 @@ exports.getDoctorAppointments = async (req, res) => {
     const doctorId = req.user.id;
     try {
         const [rows] = await db.query(`
-            SELECT a.*, stu.full_name AS patient_name, stu.student_number AS university_id
+            SELECT a.*, stu.full_name AS patientName,
+                   'Student' AS userType
             FROM appointments a
             JOIN students stu ON a.student_id = stu.id
-            WHERE a.doctor_id = ?
-            ORDER BY a.date DESC, a.time DESC
+            WHERE a.doctor_id = ? AND a.status != 'Cancelled'
+            ORDER BY a.date, a.time
         `, [doctorId]);
         res.json(rows);
     } catch (err) {
@@ -331,13 +329,17 @@ exports.updateAppointmentStatus = async (req, res) => {
 };
 
 // ==================== GET TODAY'S APPOINTMENTS (Nurse) ====================
-exports.getTodaysAppointments = async (req, res) => {
+
+    exports.getTodaysAppointments = async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     try {
         const [rows] = await db.query(`
-            SELECT a.*, stu.full_name AS patient_name, 'Student' AS patient_type
+            SELECT a.*, 
+                   stu.full_name AS patient_name,
+                   s.full_name AS doctor_name
             FROM appointments a
             JOIN students stu ON a.student_id = stu.id
+            LEFT JOIN staff s ON a.doctor_id = s.id
             WHERE a.date = ? AND a.status NOT IN ('Cancelled','Completed')
             ORDER BY a.time
         `, [today]);
